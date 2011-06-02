@@ -61,7 +61,7 @@ FORWARD(Sleep)
 
 #undef FORWARD
 
-XS(boot_Win32CORE)
+EXTERN_C XS(boot_Win32CORE)
 {
     /* This function only exists because writemain.SH, lib/ExtUtils/Embed.pm
      * and win32/buildext.pl will all generate references to it.  The function

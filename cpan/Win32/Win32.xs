@@ -1,3 +1,4 @@
+#include <wchar.h>
 #include <wctype.h>
 #include <windows.h>
 #include <shlobj.h>
@@ -236,7 +237,7 @@ get_unicode_env(pTHX_ WCHAR *name)
             pfnCreateEnvironmentBlock(&env, token, FALSE))
         {
             size_t name_len = wcslen(name);
-            WCHAR *entry = env;
+            WCHAR *entry = (WCHAR *)env;
             while (*entry) {
                 size_t i;
                 size_t entry_len = wcslen(entry);
@@ -812,12 +813,13 @@ XS(w32_GuidGen)
 {
     dXSARGS;
     GUID guid;
-    char szGUID[50] = {'\0'};
-    HRESULT  hr     = CoCreateGuid(&guid);
+    char szGUID[50]   = {'\0'};
+    HRESULT  hr       = CoCreateGuid(&guid);
+    const CLSID clsid = guid;
 
     if (SUCCEEDED(hr)) {
 	LPOLESTR pStr = NULL;
-	if (SUCCEEDED(StringFromCLSID(&guid, &pStr))) {
+	if (SUCCEEDED(StringFromCLSID(clsid, &pStr))) {
             WideCharToMultiByte(CP_ACP, 0, pStr, (int)wcslen(pStr), szGUID,
                                 sizeof(szGUID), NULL, NULL);
             CoTaskMemFree(pStr);

@@ -16,6 +16,7 @@
 #define  WIN32_LEAN_AND_MEAN	/* Tell windows.h to skip much */
 #include <windows.h>
 #include <winioctl.h>
+#include <wchar.h>
 
 /*CONSTS_DEFINED*/
 
@@ -26,7 +27,7 @@
 #define oDWORD DWORD
 
 #if (PERL_REVISION <= 5 && PERL_VERSION < 5) || defined(__CYGWIN__)
-# define win32_get_osfhandle _get_osfhandle
+# define win32_get_osfhandle get_osfhandle
 # ifdef __CYGWIN__
 #  define win32_open_osfhandle(handle,mode) \
 	(Perl_croak(aTHX_ "_open_osfhandle not implemented on Cygwin!"), -1)
@@ -142,13 +143,13 @@ CreateFileA( sPath, uAccess, uShare, pSecAttr, uCreate, uFlags, hModel )
 	char *	sPath
 	DWORD	uAccess
 	DWORD	uShare
-	void *	pSecAttr
+	_SECURITY_ATTRIBUTES *	pSecAttr
 	DWORD	uCreate
 	DWORD	uFlags
 	HANDLE	hModel
     CODE:
 	RETVAL= CreateFileA( sPath, uAccess, uShare,
-	  pSecAttr, uCreate, uFlags, hModel );
+	  (_SECURITY_ATTRIBUTES *)pSecAttr, uCreate, uFlags, hModel );
 	if(  INVALID_HANDLE_VALUE == RETVAL  ) {
 	    SaveErr( 1 );
 	    XSRETURN_NO;
@@ -164,7 +165,7 @@ CreateFileW( swPath, uAccess, uShare, pSecAttr, uCreate, uFlags, hModel )
 	WCHAR *	swPath
 	DWORD	uAccess
 	DWORD	uShare
-	void *	pSecAttr
+	SECURITY_ATTRIBUTES *	pSecAttr
 	DWORD	uCreate
 	DWORD	uFlags
 	HANDLE	hModel
@@ -234,7 +235,7 @@ DeviceIoControl( hDevice, uIoControlCode, pInBuf, lInBuf, opOutBuf, lOutBuf, olR
 	char *	opOutBuf	= NO_INIT
 	DWORD	lOutBuf		= init_buf_l($arg);
 	oDWORD	&olRetBytes
-	void *	pOverlapped
+	LPOVERLAPPED	pOverlapped
     CODE:
 	if(  NULL != pInBuf  ) {
 	    if(  0 == lInBuf  ) {
@@ -545,7 +546,7 @@ ReadFile( hFile, opBuffer, lBytes, olBytesRead, pOverlapped )
 	BYTE *	opBuffer	= NO_INIT
 	DWORD	lBytes		= init_buf_l($arg);
 	oDWORD	&olBytesRead
-	void *	pOverlapped
+	LPOVERLAPPED	pOverlapped
     CODE:
 	grow_buf_l( opBuffer,ST(1),BYTE *, lBytes,ST(2) );
 	/* Don't read more bytes than asked for if buffer is already big: */
@@ -630,7 +631,7 @@ WriteFile( hFile, pBuffer, lBytes, ouBytesWritten, pOverlapped )
 	BYTE *		pBuffer
 	DWORD		lBytes		= init_buf_l($arg);
 	oDWORD	&ouBytesWritten
-	void *		pOverlapped
+	LPOVERLAPPED	pOverlapped
     CODE:
 	/* SvCUR(ST(1)) might "panic" if pBuffer isn't valid */
 	if(  0 == lBytes  ) {

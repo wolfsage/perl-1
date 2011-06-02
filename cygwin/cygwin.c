@@ -194,7 +194,7 @@ XS(XS_Cygwin_winpid_to_pid)
 
     pid = (pid_t)SvIV(ST(0));
 
-    if ((RETVAL = cygwin32_winpid_to_pid(pid)) > 0) {
+    if ((RETVAL = cygwin_winpid_to_pid(pid)) > 0) {
         XSprePUSH; PUSHi((IV)RETVAL);
         XSRETURN(1);
     }
