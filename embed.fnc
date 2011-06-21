@@ -2451,8 +2451,6 @@ xpoM	|void|store_cop_label \
 		|NN COP *const cop|NN const char *label|STRLEN len|U32 flags
 
 xpo	|int	|keyword_plugin_standard|NN char* keyword_ptr|STRLEN keyword_len|NN OP** op_ptr
-: Used in perly.y
-xp	|void	|munge_qwlist_to_paren_list|NN OP* qwlist
 
 #if defined(USE_ITHREADS)
 #  if defined(PERL_IN_SV_C)
