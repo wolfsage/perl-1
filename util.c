@@ -6455,7 +6455,8 @@ Perl_xs_apiversion_bootcheck(pTHX_ SV *module, const char *api_p,
     /* This might croak  */
     compver = upg_version(compver, 0);
     /* This should never croak */
-    runver = new_version(PL_apiversion);
+    runver = upg_version(Perl_newSVpvn(aTHX_ "v" PERL_API_VERSION_STRING,
+				       sizeof(PERL_API_VERSION_STRING)), 0);
     if (vcmp(compver, runver)) {
 	SV *compver_string = vstringify(compver);
 	SV *runver_string = vstringify(runver);

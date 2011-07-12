@@ -4619,6 +4619,12 @@ EXTCONST char* PL_block_type[];
    However, this string will be embedded in any shared perl library, which will
    allow us add a comparison check in perlmain.c in the near future.  */
 #ifdef DOINIT
+EXTCONST char PL_apiversion[] = "v" PERL_API_VERSION_STRING "";
+#else
+EXTCONST char PL_apiversion[];
+#endif
+
+#ifdef DOINIT
 EXTCONST char PL_bincompat_options[] =
 #  ifdef DEBUG_LEAKING_SCALARS
 			     " DEBUG_LEAKING_SCALARS"
