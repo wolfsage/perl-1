@@ -726,13 +726,15 @@ CORE_H		= $(CORE_NOCFG_H) .\config.h ..\git_version.h
 UUDMAP_H	= ..\uudmap.h
 BITCOUNT_H	= ..\bitcount.h
 MG_DATA_H	= ..\mg_data.h
+BINCOMPAT_H	= ..\bincompat.h
 
 MICROCORE_OBJ	= $(MICROCORE_SRC:.c=.obj)
 CORE_OBJ	= $(MICROCORE_OBJ) $(EXTRACORE_SRC:.c=.obj)
 WIN32_OBJ	= $(WIN32_SRC:.c=.obj)
 MINICORE_OBJ	= $(MICROCORE_OBJ:..\=.\mini\)	\
 		  $(MINIDIR)\miniperlmain$(o)	\
-		  $(MINIDIR)\perlio$(o)
+		  $(MINIDIR)\perlio$(o)		\
+		  $(MINIDIR)\globals$(o)
 MINIWIN32_OBJ	= $(WIN32_OBJ:.\=.\mini\)
 MINI_OBJ	= $(MINICORE_OBJ) $(MINIWIN32_OBJ)
 DLL_OBJ		= $(DYNALOADER)
@@ -831,6 +833,11 @@ config.w32 : $(CFGSH_TMPL)
 ..\git_version.h : $(MINIPERL) ..\make_patchnum.pl
 	cd ..
 	miniperl -Ilib make_patchnum.pl
+	cd win32
+
+..\bincompat.h : $(MINIPERL) ..\make_bincompat.pl
+	cd ..
+	miniperl -Ilib make_bincompat.pl > bincompat.h
 	cd win32
 
 # make sure that we recompile perl.c if the git version changes
@@ -947,7 +954,7 @@ $(X2P) : $(MINIPERL) $(X2P_OBJ) Extensions
 <<
 	$(EMBED_EXE_MANI)
 
-$(MINIDIR)\globals$(o) : $(UUDMAP_H) $(BITCOUNT_H) $(MG_DATA_H)
+$(MINIDIR)\globals$(o) : $(UUDMAP_H) $(BITCOUNT_H) $(MG_DATA_H) $(BINCOMPAT_H)
 
 $(UUDMAP_H) $(MG_DATA_H) : $(BITCOUNT_H)
 
@@ -1281,7 +1288,7 @@ _clean :
 	-@$(DEL) $(PERLSTATICLIB)
 	-@$(DEL) $(PERLDLL)
 	-@$(DEL) $(CORE_OBJ)
-	-@$(DEL) $(GENUUDMAP) $(GENUUDMAP_OBJ) $(UUDMAP_H) $(BITCOUNT_H) $(MG_DATA_H)
+	-@$(DEL) $(GENUUDMAP) $(GENUUDMAP_OBJ) $(UUDMAP_H) $(BITCOUNT_H) $(MG_DATA_H) $(BINCOMPAT_H)
 	-if exist $(MINIDIR) rmdir /s /q $(MINIDIR)
 	-if exist $(UNIDATADIR1) rmdir /s /q $(UNIDATADIR1)
 	-if exist $(UNIDATADIR2) rmdir /s /q $(UNIDATADIR2)

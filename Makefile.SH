@@ -454,12 +454,12 @@ c3 = taint.c toke.c util.c deb.c run.c universal.c pad.c globals.c keywords.c
 c4 = perlio.c perlapi.c numeric.c mathoms.c locale.c pp_pack.c pp_sort.c
 c5 = $(madlysrc) $(mallocsrc)
 
-c = $(c1) $(c2) $(c3) $(c4) $(c5) miniperlmain.c opmini.c perlmini.c
+c = $(c1) $(c2) $(c3) $(c4) $(c5) miniperlmain.c opmini.c perlmini.c globalsmini.c
 
-obj0 = op$(OBJ_EXT) perl$(OBJ_EXT)
+obj0 = op$(OBJ_EXT) perl$(OBJ_EXT) globals$(OBJ_EXT)
 obj1 = $(madlyobj) $(mallocobj) gv$(OBJ_EXT) toke$(OBJ_EXT) perly$(OBJ_EXT) pad$(OBJ_EXT) regcomp$(OBJ_EXT) dump$(OBJ_EXT) util$(OBJ_EXT) mg$(OBJ_EXT) reentr$(OBJ_EXT) mro$(OBJ_EXT) keywords$(OBJ_EXT)
 obj2 = hv$(OBJ_EXT) av$(OBJ_EXT) run$(OBJ_EXT) pp_hot$(OBJ_EXT) sv$(OBJ_EXT) pp$(OBJ_EXT) scope$(OBJ_EXT) pp_ctl$(OBJ_EXT) pp_sys$(OBJ_EXT)
-obj3 = doop$(OBJ_EXT) doio$(OBJ_EXT) regexec$(OBJ_EXT) utf8$(OBJ_EXT) taint$(OBJ_EXT) deb$(OBJ_EXT) universal$(OBJ_EXT) globals$(OBJ_EXT) perlio$(OBJ_EXT) perlapi$(OBJ_EXT) numeric$(OBJ_EXT) mathoms$(OBJ_EXT) locale$(OBJ_EXT) pp_pack$(OBJ_EXT) pp_sort$(OBJ_EXT)
+obj3 = doop$(OBJ_EXT) doio$(OBJ_EXT) regexec$(OBJ_EXT) utf8$(OBJ_EXT) taint$(OBJ_EXT) deb$(OBJ_EXT) universal$(OBJ_EXT) perlio$(OBJ_EXT) perlapi$(OBJ_EXT) numeric$(OBJ_EXT) mathoms$(OBJ_EXT) locale$(OBJ_EXT) pp_pack$(OBJ_EXT) pp_sort$(OBJ_EXT)
 
 minindt_obj = $(obj1) $(obj2) $(obj3) $(ARCHOBJS)
 mini_obj = $(minindt_obj) $(MINIDTRACE_O)
@@ -551,6 +551,9 @@ git_version.h: lib/Config_git.pl
 lib/Config_git.pl: $(MINIPERL_EXE) make_patchnum.pl
 	$(MINIPERL) make_patchnum.pl
 
+bincompat.h: $(MINIPERL_EXE) $(CONFIGPM) make_bincompat.pl
+	 $(MINIPERL) make_bincompat.pl > bincompat.h
+
 # make sure that we recompile perl.c if the git version changes
 perl$(OBJ_EXT): git_version.h
 
@@ -600,7 +603,7 @@ FORCE:
 	@sh -c true
 !NO!SUBS!
 
-for file in op perl; do
+for file in op perl globals; do
     if $issymlink $file.c; then
         $spitshell >>$Makefile <<!GROK!THIS!
 
@@ -628,9 +631,18 @@ ${file}mini\$(OBJ_EXT): ${file}mini.c
 !GROK!THIS!
 done
 
+$spitshell >>$Makefile <<!GROK!THIS!
+
+miniperlmain\$(OBJ_EXT): miniperlmain.c patchlevel.h
+	\$(CCCMD) $DPERL_IS_MINIPERL \$(PLDLFLAGS) \$*.c
+
+!GROK!THIS!
+
 $spitshell >>$Makefile <<'!NO!SUBS!'
 
-globals$(OBJ_EXT): uudmap.h bitcount.h mg_data.h
+globals$(OBJ_EXT): uudmap.h bitcount.h mg_data.h bincompat.h
+
+globalsmini$(OBJ_EXT): uudmap.h bitcount.h mg_data.h
 
 uudmap.h mg_data.h: bitcount.h
 
@@ -641,9 +653,6 @@ generate_uudmap$(OBJ_EXT): mg_raw.h
 
 generate_uudmap$(HOST_EXE_EXT): generate_uudmap$(OBJ_EXT)
 	$(CC) -o generate_uudmap$(EXE_EXT) $(LDFLAGS) generate_uudmap$(OBJ_EXT) $(libs)
-
-miniperlmain$(OBJ_EXT): miniperlmain.c patchlevel.h
-	$(CCCMD) $(PLDLFLAGS) $*.c
 
 perlmain.c: $(MINIPERL_EXE) lib/ExtUtils/Miniperl.pm
 	$(MINIPERL) -Ilib -MExtUtils::Miniperl -e 'writemain(@ARGV)' DynaLoader $(static_ext) > perlmain.c
@@ -688,9 +697,9 @@ $(LIBPERL_NONSHR): $(obj)
 	$(RMS) $(LIBPERL_NONSHR)
 	$(AR) rcu $(LIBPERL_NONSHR) $(obj)
 
-$(MINIPERL_NONSHR): $(LIBPERL_NONSHR) miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT)  perlmini$(OBJ_EXT)
+$(MINIPERL_NONSHR): $(LIBPERL_NONSHR) miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) globalsmini$(OBJ_EXT)
 	$(CC) $(LDFLAGS) -o $(MINIPERL_NONSHR) miniperlmain$(OBJ_EXT) \
-	    opmini$(OBJ_EXT) perlmini$(OBJ_EXT) $(LIBPERL_NONSHR) $(LIBS)
+	    opmini$(OBJ_EXT) perlmini$(OBJ_EXT) globalsmini$(OBJ_EXT) $(LIBPERL_NONSHR) $(LIBS)
 
 MINIPERLEXP		= $(MINIPERL_NONSHR)
 
@@ -812,18 +821,18 @@ $(LIBPERL): $& $(obj) $(DYNALOADER) $(LIBPERLEXPORT)
 	case "${osname}${osvers}" in
 	aix*|beos*)
 		$spitshell >>$Makefile <<'!NO!SUBS!'
-$(MINIPERL_EXE): $& miniperlmain$(OBJ_EXT) $(mini_obj) opmini$(OBJ_EXT) perlmini$(OBJ_EXT)
+$(MINIPERL_EXE): $& miniperlmain$(OBJ_EXT) $(mini_obj) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) globalsmini$(OBJ_EXT)
 	$(CC) -o $(MINIPERL_EXE) $(CLDFLAGS) \
 	    $(mini_obj) \
-	    miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) $(libs)
+	    miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) globalsmini$(OBJ_EXT) $(libs)
 	$(LDLIBPTH) $(RUN) ./miniperl$(HOST_EXE_EXT) -w -Ilib -MExporter -e '<?>' || $(MAKE) minitest
 !NO!SUBS!
 		;;
 	next4*)
 		$spitshell >>$Makefile <<'!NO!SUBS!'
-$(MINIPERL_EXE): $& miniperlmain$(OBJ_EXT) $(mini_obj) perlmini$(OBJ_EXT) opmini$(OBJ_EXT)
+$(MINIPERL_EXE): $& miniperlmain$(OBJ_EXT) $(mini_obj) perlmini$(OBJ_EXT) globalsmini$(OBJ_EXT) opmini$(OBJ_EXT)
 	$(CC) -o $(MINIPERL_EXE) $(mini_obj) \
-	    miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) $(libs)
+	    miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) globalsmini$(OBJ_EXT) $(libs)
 	$(LDLIBPTH) $(RUN) ./miniperl$(HOST_EXE_EXT) -w -Ilib -MExporter -e '<?>' || $(MAKE) minitest
 !NO!SUBS!
 		;;
@@ -841,21 +850,21 @@ NAMESPACEFLAGS = -force_flat_namespace
 		    ;;
 		esac
 		$spitshell >>$Makefile <<'!NO!SUBS!'
-$(MINIPERL_EXE): $& miniperlmain$(OBJ_EXT) $(mini_obj) opmini$(OBJ_EXT) perlmini$(OBJ_EXT)
+$(MINIPERL_EXE): $& miniperlmain$(OBJ_EXT) $(mini_obj) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) globalsmini$(OBJ_EXT)
 	-@rm -f miniperl.xok
 	$(CC) $(CLDFLAGS) $(NAMESPACEFLAGS) -o $(MINIPERL_EXE) \
 	    $(mini_obj) \
-	    miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) $(libs)
+	    miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) globalsmini$(OBJ_EXT) $(libs)
 	$(LDLIBPTH) $(RUN) ./miniperl$(HOST_EXE_EXT) -w -Ilib -MExporter -e '<?>' || $(MAKE) minitest
 !NO!SUBS!
 		;;
 	*)
 		$spitshell >>$Makefile <<'!NO!SUBS!'
-$(MINIPERL_EXE): $& miniperlmain$(OBJ_EXT) $(mini_obj) opmini$(OBJ_EXT) perlmini$(OBJ_EXT)
+$(MINIPERL_EXE): $& miniperlmain$(OBJ_EXT) $(mini_obj) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) globalsmini$(OBJ_EXT)
 	-@rm -f miniperl.xok
 	$(LDLIBPTH) $(CC) $(CLDFLAGS) -o $(MINIPERL_EXE) \
 	    $(mini_obj) \
-	    miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) $(libs)
+	    miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT) perlmini$(OBJ_EXT) globalsmini$(OBJ_EXT) $(libs)
 	$(LDLIBPTH) $(RUN) ./miniperl$(HOST_EXE_EXT) -w -Ilib -MExporter -e '<?>' || $(MAKE) minitest
 !NO!SUBS!
 		;;
@@ -1226,11 +1235,11 @@ veryclean:	_verycleaner _mopup _clobber
 
 # Do not 'make _mopup' directly.
 _mopup:
-	rm -f *$(OBJ_EXT) *$(LIB_EXT) all perlmain.c opmini.c perlmini.c uudmap.h generate_uudmap$(EXE_EXT) bitcount.h mg_data.h
+	rm -f *$(OBJ_EXT) *$(LIB_EXT) all perlmain.c opmini.c perlmini.c globalsmini.c uudmap.h generate_uudmap$(EXE_EXT) bitcount.h mg_data.h bincompat.h
 	-rmdir .depending
 	-@test -f extra.pods && rm -f `cat extra.pods`
 	-@test -f vms/README_vms.pod && rm -f vms/README_vms.pod
-	-rm -f perl.exp ext.libs $(generated_pods) uni.data opmini.o perlmini.o
+	-rm -f perl.exp ext.libs $(generated_pods) uni.data opmini.o perlmini.o globalsmini.o
 	-rm -f perl.export perl.dll perl.libexp perl.map perl.def
 	-rm -f perl.loadmap miniperl.loadmap perl.prelmap miniperl.prelmap
 	-rm -f perl.third lib*.so.perl.third perl.3log t/perl.third t/perl.3log
@@ -1553,7 +1562,7 @@ distcheck: FORCE
 .PHONY: ctags
 
 ctags:
-	ctags -f Tags -N --totals --languages=c --langmap=c:+.h --exclude=opmini.c --exclude=perlmini.c *.c *.h
+	ctags -f Tags -N --totals --languages=c --langmap=c:+.h --exclude=opmini.c --exclude=perlmini.c --exclude=globalsmini.c *.c *.h
 
 # AUTOMATICALLY GENERATED MAKE DEPENDENCIES--PUT NOTHING BELOW THIS LINE
 # If this runs make out of memory, delete /usr/include lines.
