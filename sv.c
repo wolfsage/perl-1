@@ -4022,17 +4022,51 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
 	/* Fall through */
 #endif
     case SVt_PV:
-	if (dtype < SVt_PV)
-	    sv_upgrade(dstr, SVt_PV);
-	break;
+	if (SvOK(sstr)) {
+	    if (dtype < SVt_PV)
+		sv_upgrade(dstr, SVt_PV);
+	    break;
+	}
+	goto undef_sstr;
+
     case SVt_PVIV:
-	if (dtype < SVt_PVIV)
-	    sv_upgrade(dstr, SVt_PVIV);
-	break;
+	if (SvIsNUMBER(sstr)) {
+	    if (dtype < SVt_IV) {
+		sv_upgrade(dstr, SVt_IV);
+		goto end_of_first_switch;
+	    }
+	}
+	if (SvOK(sstr)) {
+	    if (dtype < SVt_PVIV)
+		sv_upgrade(dstr, SVt_PVIV);
+	    break;
+	}
+	goto undef_sstr;
+
     case SVt_PVNV:
-	if (dtype < SVt_PVNV)
-	    sv_upgrade(dstr, SVt_PVNV);
-	break;
+	if (SvIsNUMBER(sstr)) {
+	    switch (SvFLAGS(sstr) & (SVp_IOK|SVp_NOK)) {
+	    case SVp_NOK:
+		if (dtype < SVt_NV) {
+		    sv_upgrade(dstr, SVt_NV);
+		    goto end_of_first_switch;
+		}
+		break;
+	    case SVp_IOK:
+		if (dtype < SVt_IV) {
+		    sv_upgrade(dstr, SVt_IV);
+		    goto end_of_first_switch;
+		}
+		break;
+	    }
+	}
+	if (SvOK(sstr)) {
+	    if (dtype < SVt_PVNV)
+		sv_upgrade(dstr, SVt_PVNV);
+	    break;
+	}
+	goto undef_sstr;
+
     default:
 	{
 	const char * const type = sv_reftype(sstr,0);
@@ -4173,7 +4207,7 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
     else if (dtype == SVt_REGEXP && stype == SVt_REGEXP) {
 	reg_temp_copy((REGEXP*)dstr, (REGEXP*)sstr);
     }
-    else if (sflags & SVp_POK) {
+    else if ((sflags & SVp_POK) && !SvIsNUMBER(sstr)) {
         bool isSwipe = 0;
 
 	/*
