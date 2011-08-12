@@ -12,7 +12,7 @@ require Exporter;
 require List::Util; # List::Util loads the XS
 
 @ISA       = qw(Exporter);
-@EXPORT_OK = qw(blessed dualvar reftype weaken isweak tainted readonly openhandle refaddr isvstring looks_like_number set_prototype);
+@EXPORT_OK = qw(blessed dualvar reftype weaken isweak tainted readonly openhandle refaddr isvstring isstring isnumber looks_like_number set_prototype);
 $VERSION    = "1.23";
 $VERSION   = eval $VERSION;
 
@@ -20,7 +20,7 @@ unless (defined &dualvar) {
   # Load Pure Perl version if XS not loaded
   require Scalar::Util::PP;
   Scalar::Util::PP->import;
-  push @EXPORT_FAIL, qw(weaken isweak dualvar isvstring set_prototype);
+  push @EXPORT_FAIL, qw(weaken isweak dualvar isvstring isstring isnumber set_prototype);
 }
 
 sub export_fail {
@@ -40,6 +40,11 @@ sub export_fail {
   if (grep { /^(isvstring)$/ } @_ ) {
     require Carp;
     Carp::croak("Vstrings are not implemented in the version of perl");
+  }
+
+  if (grep { /^(isstring|isnumber)$/ } @_ ) {
+    require Carp;
+    Carp::croak("Scalar types are not implemented in the version of perl");
   }
 
   @_;
@@ -74,7 +79,7 @@ Scalar::Util - A selection of general-utility scalar subroutines
 =head1 SYNOPSIS
 
     use Scalar::Util qw(blessed dualvar isweak readonly refaddr reftype tainted
-                        weaken isvstring looks_like_number set_prototype);
+                        weaken isvstring isstring isnumber looks_like_number set_prototype);
                         # and other useful utils appearing below
 
 =head1 DESCRIPTION
@@ -119,6 +124,31 @@ If EXPR is a scalar which was coded as a vstring the result is true.
     $vs   = v49.46.48;
     $fmt  = isvstring($vs) ? "%vd" : "%s"; #true
     printf($fmt,$vs);
+
+=item isstring EXPR
+
+If EXPR is a scalar with a value that is originally a string -- that is,
+NOT the result of merely stringifying a numeric value -- the result is true.
+NOTE: This function may return a false positive on globs; this should change.
+
+    $s = "1";
+    $n = 1;
+    isstring $s;  #true
+    isstring $n;  #false
+    $foo = $n . '';
+    isstring $n;  #still false
+
+=item isnumber ExPR
+
+If EXPR is a scalar with a value that is originally a number, even if that
+value has been incidentally stringified, the result is true.
+
+    $s = "1";
+    $n = 1;
+    isnumber $s;  #false
+    isnumber $n;  #true
+    $foo = $n . '';
+    isnumber $n;  #still true
 
 =item isweak EXPR
 

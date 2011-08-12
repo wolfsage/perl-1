@@ -1165,42 +1165,9 @@ Perl_sv_upgrade(pTHX_ register SV *const sv, svtype new_type)
     old_body = SvANY(sv);
 
     /* Copying structures onto other structures that have been neatly zeroed
-       has a subtle gotcha. Consider XPVMG
-
-       +------+------+------+------+------+-------+-------+
-       |     NV      | CUR  | LEN  |  IV  | MAGIC | STASH |
-       +------+------+------+------+------+-------+-------+
-       0      4      8     12     16     20      24      28
-
-       where NVs are aligned to 8 bytes, so that sizeof that structure is
-       actually 32 bytes long, with 4 bytes of padding at the end:
-
-       +------+------+------+------+------+-------+-------+------+
-       |     NV      | CUR  | LEN  |  IV  | MAGIC | STASH | ???  |
-       +------+------+------+------+------+-------+-------+------+
-       0      4      8     12     16     20      24      28     32
-
-       so what happens if you allocate memory for this structure:
-
-       +------+------+------+------+------+-------+-------+------+------+...
-       |     NV      | CUR  | LEN  |  IV  | MAGIC | STASH |  GP  | NAME |
-       +------+------+------+------+------+-------+-------+------+------+...
-       0      4      8     12     16     20      24      28     32     36
-
-       zero it, then copy sizeof(XPVMG) bytes on top of it? Not quite what you
-       expect, because you copy the area marked ??? onto GP. Now, ??? may have
-       started out as zero once, but it's quite possible that it isn't. So now,
-       rather than a nicely zeroed GP, you have it pointing somewhere random.
-       Bugs ensue.
-
-       (In fact, GP ends up pointing at a previous GP structure, because the
-       principle cause of the padding in XPVMG getting garbage is a copy of
-       sizeof(XPVMG) bytes from a XPVGV structure in sv_unglob. Right now
-       this happens to be moot because XPVGV has been re-ordered, with GP
-       no longer after STASH)
-
-       So we are careful and work out the size of used parts of all the
-       structures.  */
+       has a subtle gotcha.  The original structure may have unused padding
+       at the end, which the new structure assigns a meaning to.  So we are
+       careful and work out the size of used parts of all the structures.  */
 
     switch (old_type) {
     case SVt_NULL:
@@ -2716,6 +2683,7 @@ Perl_sv_2pv_flags(pTHX_ register SV *const sv, STRLEN *const lp, const I32 flags
 {
     dVAR;
     register char *s;
+    bool priv = FALSE;
 
     if (!sv) {
 	if (lp)
@@ -2923,6 +2891,7 @@ Perl_sv_2pv_flags(pTHX_ register SV *const sv, STRLEN *const lp, const I32 flags
 	Move(ptr, s, len, char);
 	s += len;
 	*s = '\0';
+	priv = TRUE;
     }
     else if (SvNOKp(sv)) {
 	if (SvTYPE(sv) < SVt_PVNV)
@@ -2944,6 +2913,7 @@ Perl_sv_2pv_flags(pTHX_ register SV *const sv, STRLEN *const lp, const I32 flags
 	if (s[-1] == '.')
 	    *--s = '\0';
 #endif
+	priv = TRUE;
     }
     else {
 	if (isGV_with_GP(sv)) {
@@ -2987,7 +2957,10 @@ Perl_sv_2pv_flags(pTHX_ register SV *const sv, STRLEN *const lp, const I32 flags
 	    *lp = len;
 	SvCUR_set(sv, len);
     }
-    SvPOK_on(sv);
+    if (priv)
+	SvPOKp_on(sv);
+    else
+	SvPOK_on(sv);
     DEBUG_c(PerlIO_printf(Perl_debug_log, "0x%"UVxf" 2pv(%s)\n",
 			  PTR2UV(sv),SvPVX_const(sv)));
     if (flags & SV_CONST_RETURN)

@@ -52,7 +52,7 @@ typedef enum {
 	SVt_PV,		/* 4 */
 	SVt_PVIV,	/* 5 */
 	SVt_PVNV,	/* 6 */
-	SVt_PVMG,	/* 7 */
+	SVt_PVMG,	/* 7 - first one with magic and blessing */
 	SVt_REGEXP,	/* 8 */
 	/* PVBM was here, before BIND replaced it.  */
 	SVt_PVGV,	/* 9 */
@@ -735,6 +735,9 @@ Set the actual length of the string which is in the SV.  See C<SvIV_set>.
 #define SvNIOKp(sv)		(SvFLAGS(sv) & (SVp_IOK|SVp_NOK))
 #define SvNIOK_off(sv)		(SvFLAGS(sv) &= ~(SVf_IOK|SVf_NOK| \
 						  SVp_IOK|SVp_NOK|SVf_IVisUV))
+
+#define SvIsSTRING(sv)		((SvFLAGS(sv) & (SVf_IOK|SVf_NOK|SVf_POK)) == SVf_POK)
+#define SvIsNUMBER(sv)		(SvNIOK(sv) && !SvPOK(sv))
 
 #if defined(__GNUC__) && !defined(PERL_GCC_BRACE_GROUPS_FORBIDDEN)
 #define assert_not_ROK(sv)	({assert(!SvROK(sv) || !SvRV(sv));}),

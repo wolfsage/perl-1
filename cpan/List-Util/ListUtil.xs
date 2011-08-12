@@ -526,6 +526,30 @@ CODE:
 	croak("vstrings are not implemented in this release of perl");
 #endif
 
+void
+isstring(sv)
+       SV *sv
+PROTOTYPE: $
+CODE:
+#if PERL_VERSION > 15 || (PERL_VERSION == 15 && PERL_SUBVERSION >= 1)
+  ST(0) = boolSV(SvIsSTRING(sv));
+  XSRETURN(1);
+#else
+  croak("scalar types are not implemented in this release of perl");
+#endif
+
+void
+isnumber(sv)
+       SV *sv
+PROTOTYPE: $
+CODE:
+#if PERL_VERSION > 15 || (PERL_VERSION == 15 && PERL_SUBVERSION >= 1)
+  ST(0) = boolSV(SvIsNUMBER(sv));
+  XSRETURN(1);
+#else
+  croak("scalar types are not implemented in this release of perl");
+#endif
+
 int
 looks_like_number(sv)
 	SV *sv

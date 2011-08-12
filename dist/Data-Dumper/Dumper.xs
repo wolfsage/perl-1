@@ -1151,7 +1151,7 @@ Data_Dumper_Dumpxs(href, ...)
 		    else
 			(void)SvOK_off(name);
 		
-		    if (SvPOK(name)) {
+		    if (SvPOK(name) || SvPOKp(name)) {
 			if ((SvPVX_const(name))[0] == '*') {
 			    if (SvROK(val)) {
 				switch (SvTYPE(SvRV(val))) {
