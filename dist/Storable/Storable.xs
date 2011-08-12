@@ -2051,12 +2051,17 @@ static int store_scalar(pTHX_ stcxt_t *cxt, SV *sv)
 	 * The reason is that when the scalar value is tainted, the SvNOK(sv)
 	 * value is false.
 	 *
-	 * The test for a read-only scalar with both POK and NOK set is meant
+	 * The test for a read-only scalar with both POK and IOK/NOK set is meant
 	 * to quickly detect &PL_sv_yes and &PL_sv_no without having to pay the
-	 * address comparison for each scalar we store.
+	 * address comparison for each scalar we store, but it's quite prone to
+	 * breaking when Perl's guts change, so it should perhaps be reconsidered.
 	 */
 
-#define SV_MAYBE_IMMORTAL (SVf_READONLY|SVf_POK|SVf_NOK)
+#if PERL_VERSION >= 10  /* no later than 5.10, sv_yes and sv_no always have IOK */
+#  define SV_MAYBE_IMMORTAL (SVf_READONLY|SVf_POK|SVf_IOK)
+#else
+#  define SV_MAYBE_IMMORTAL (SVf_READONLY|SVf_POK|SVf_NOK)
+#endif
 
 	if ((flags & SV_MAYBE_IMMORTAL) == SV_MAYBE_IMMORTAL) {
 		if (sv == &PL_sv_yes) {
