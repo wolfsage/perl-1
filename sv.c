@@ -4267,12 +4267,24 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
 #endif
             ) {
             /* Failed the swipe test, and it's not a shared hash key either.
-               Have to copy the string.  */
-	    STRLEN len = SvCUR(sstr);
-            SvGROW(dstr, len + 1);	/* inlined from sv_setpvn */
-            Move(SvPVX_const(sstr),SvPVX(dstr),len,char);
-            SvCUR_set(dstr, len);
-            *SvEND(dstr) = '\0';
+	       Handle booleans, or else just copy the damn string. */
+	    char * const spv = SvPVX_mutable(sstr);
+	    if (spv == PL_Yes || spv == PL_No) {
+		if (SvOOK(dstr))	/* pv is offset? */
+		    sv_backoff(dstr);
+		if (SvLEN(dstr))
+		    Safefree(SvPVX_mutable(dstr));
+		SvPV_set(dstr, spv);
+		SvLEN(dstr) = 0;
+		SvCUR(dstr) = SvCUR(sstr); /* could be 1 or 0 */
+	    }
+	    else {
+		STRLEN len = SvCUR(sstr);
+		SvGROW(dstr, len + 1);	/* inlined from sv_setpvn */
+		Move(spv,SvPVX(dstr),len,char);
+		SvCUR_set(dstr, len);
+		*SvEND(dstr) = '\0';
+	    }
         } else {
             /* If PERL_OLD_COPY_ON_WRITE is not defined, then isSwipe will always
                be true in here.  */
@@ -12765,18 +12777,6 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
     PL_hash_seed	= proto_perl->Ihash_seed;
     PL_rehash_seed	= proto_perl->Irehash_seed;
 
-    SvANY(&PL_sv_undef)		= NULL;
-    SvREFCNT(&PL_sv_undef)	= (~(U32)0)/2;
-    SvFLAGS(&PL_sv_undef)	= SVf_READONLY|SVt_NULL;
-    SvREFCNT(&PL_sv_no)		= (~(U32)0)/2;
-    SvFLAGS(&PL_sv_no)		= SVp_IOK|SVf_IOK|SVp_NOK|SVf_NOK
-				  |SVp_POK|SVf_POK|SVf_READONLY|SVt_PVNV;
-
-    SvANY(&PL_sv_yes)		= new_XPVNV();
-    SvREFCNT(&PL_sv_yes)	= (~(U32)0)/2;
-    SvFLAGS(&PL_sv_yes)		= SVp_IOK|SVf_IOK|SVp_NOK|SVf_NOK
-				  |SVp_POK|SVf_POK|SVf_READONLY|SVt_PVNV;
-
     /* dbargs array probably holds garbage */
     PL_dbargs		= NULL;
 
@@ -13015,21 +13015,9 @@ perl_clone_using(PerlInterpreter *proto_perl, UV flags,
     PL_ptr_table = ptr_table_new();
 
     /* initialize these special pointers as early as possible */
+    init_constants();
     ptr_table_store(PL_ptr_table, &proto_perl->Isv_undef, &PL_sv_undef);
-
-    SvANY(&PL_sv_no)		= new_XPVNV();
-    SvPV_set(&PL_sv_no, savepvn(PL_No, 0));
-    SvCUR_set(&PL_sv_no, 0);
-    SvLEN_set(&PL_sv_no, 1);
-    SvIV_set(&PL_sv_no, 0);
-    SvNV_set(&PL_sv_no, 0);
     ptr_table_store(PL_ptr_table, &proto_perl->Isv_no, &PL_sv_no);
-
-    SvPV_set(&PL_sv_yes, savepvn(PL_Yes, 1));
-    SvCUR_set(&PL_sv_yes, 1);
-    SvLEN_set(&PL_sv_yes, 2);
-    SvIV_set(&PL_sv_yes, 1);
-    SvNV_set(&PL_sv_yes, 1);
     ptr_table_store(PL_ptr_table, &proto_perl->Isv_yes, &PL_sv_yes);
 
     /* create (a non-shared!) shared string table */
@@ -13499,6 +13487,38 @@ Perl_clone_params_new(PerlInterpreter *const from, PerlInterpreter *const to)
 }
 
 #endif /* USE_ITHREADS */
+
+void
+Perl_init_constants(pTHX)
+{
+    SvREFCNT(&PL_sv_undef)	= (~(U32)0)/2;
+    SvFLAGS(&PL_sv_undef)	= SVf_READONLY|SVt_NULL;
+    SvANY(&PL_sv_undef)		= NULL;
+
+    SvANY(&PL_sv_no)		= new_XPVNV();
+    SvREFCNT(&PL_sv_no)		= (~(U32)0)/2;
+    SvFLAGS(&PL_sv_no)		= SVt_PVNV|SVf_READONLY
+				  |SVp_IOK|SVf_IOK|SVp_NOK|SVf_NOK
+				  |SVp_POK|SVf_POK;
+
+    SvANY(&PL_sv_yes)		= new_XPVNV();
+    SvREFCNT(&PL_sv_yes)	= (~(U32)0)/2;
+    SvFLAGS(&PL_sv_yes)		= SVt_PVNV|SVf_READONLY
+				  |SVp_IOK|SVf_IOK|SVp_NOK|SVf_NOK
+				  |SVp_POK|SVf_POK;
+
+    SvPV_set(&PL_sv_no, (char*)PL_No);
+    SvCUR_set(&PL_sv_no, 0);
+    SvLEN_set(&PL_sv_no, 0);
+    SvIV_set(&PL_sv_no, 0);
+    SvNV_set(&PL_sv_no, 0);
+
+    SvPV_set(&PL_sv_yes, (char*)PL_Yes);
+    SvCUR_set(&PL_sv_yes, 1);
+    SvLEN_set(&PL_sv_yes, 0);
+    SvIV_set(&PL_sv_yes, 1);
+    SvNV_set(&PL_sv_yes, 1);
+}
 
 /*
 =head1 Unicode Support

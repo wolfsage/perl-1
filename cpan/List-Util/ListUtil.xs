@@ -550,6 +550,19 @@ CODE:
   croak("scalar types are not implemented in this release of perl");
 #endif
 
+void
+isboolean(sv)
+       SV *sv
+PROTOTYPE: $
+CODE:
+#if PERL_VERSION > 15 || (PERL_VERSION == 15 && PERL_SUBVERSION >= 1)
+  ST(0) = boolSV(SvTYPE(sv) >= SVt_PV && SvPOK(sv)
+                 && (SvPVX_const(sv) == PL_Yes || SvPVX_const(sv) == PL_No));
+  XSRETURN(1);
+#else
+  croak("scalar types are not implemented in this release of perl");
+#endif
+
 int
 looks_like_number(sv)
 	SV *sv

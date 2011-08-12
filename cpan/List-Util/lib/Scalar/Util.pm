@@ -12,7 +12,7 @@ require Exporter;
 require List::Util; # List::Util loads the XS
 
 @ISA       = qw(Exporter);
-@EXPORT_OK = qw(blessed dualvar reftype weaken isweak tainted readonly openhandle refaddr isvstring isstring isnumber looks_like_number set_prototype);
+@EXPORT_OK = qw(blessed dualvar reftype weaken isweak tainted readonly openhandle refaddr isvstring isstring isnumber isboolean looks_like_number set_prototype);
 $VERSION    = "1.23";
 $VERSION   = eval $VERSION;
 
@@ -20,7 +20,7 @@ unless (defined &dualvar) {
   # Load Pure Perl version if XS not loaded
   require Scalar::Util::PP;
   Scalar::Util::PP->import;
-  push @EXPORT_FAIL, qw(weaken isweak dualvar isvstring isstring isnumber set_prototype);
+  push @EXPORT_FAIL, qw(weaken isweak dualvar isvstring isstring isnumber isboolean set_prototype);
 }
 
 sub export_fail {
@@ -42,7 +42,7 @@ sub export_fail {
     Carp::croak("Vstrings are not implemented in the version of perl");
   }
 
-  if (grep { /^(isstring|isnumber)$/ } @_ ) {
+  if (grep { /^(isstring|isnumber|isboolean)$/ } @_ ) {
     require Carp;
     Carp::croak("Scalar types are not implemented in the version of perl");
   }
@@ -79,7 +79,7 @@ Scalar::Util - A selection of general-utility scalar subroutines
 =head1 SYNOPSIS
 
     use Scalar::Util qw(blessed dualvar isweak readonly refaddr reftype tainted
-                        weaken isvstring isstring isnumber looks_like_number set_prototype);
+                        weaken isvstring isstring isnumber isboolean looks_like_number set_prototype);
                         # and other useful utils appearing below
 
 =head1 DESCRIPTION
@@ -138,7 +138,7 @@ NOTE: This function may return a false positive on globs; this should change.
     $foo = $n . '';
     isstring $n;  #still false
 
-=item isnumber ExPR
+=item isnumber EXPR
 
 If EXPR is a scalar with a value that is originally a number, even if that
 value has been incidentally stringified, the result is true.
@@ -149,6 +149,19 @@ value has been incidentally stringified, the result is true.
     isnumber $n;  #true
     $foo = $n . '';
     isnumber $n;  #still true
+
+=item isboolean EXPR
+
+If EXPR is a scalar with a value that is originally a boolean, even if that
+value has been copied (but not modified), the result is true.
+
+    $n = 1;
+    $b = (1 == 1);
+    isboolean ('a' eq 'b'); # true
+    isboolean $b;   #true
+    isboolean $n;   #false
+    isboolean !$n;  #true
+    isboolean !!$n; #true
 
 =item isweak EXPR
 
