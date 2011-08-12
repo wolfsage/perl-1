@@ -177,12 +177,11 @@ Perl_mg_get(pTHX_ SV *sv)
 {
     dVAR;
     const I32 mgs_ix = SSNEW(sizeof(MGS));
+    bool saved = FALSE;
     bool have_new = 0;
     MAGIC *newmg, *head, *cur, *mg;
 
     PERL_ARGS_ASSERT_MG_GET;
-
-    save_magic(mgs_ix, sv);
 
     /* We must call svt_get(sv, mg) for each valid entry in the linked
        list of magic. svt_get() may delete the current entry, add new
@@ -194,6 +193,13 @@ Perl_mg_get(pTHX_ SV *sv)
 	MAGIC * const nextmg = mg->mg_moremagic;	/* it may delete itself */
 
 	if (!(mg->mg_flags & MGf_GSKIP) && vtbl && vtbl->svt_get) {
+
+	    /* taint's mg get is so dumb it doesn't need flag saving */
+	    if (!saved && mg->mg_type != PERL_MAGIC_taint) {
+		save_magic(mgs_ix, sv);
+		saved = TRUE;
+	    }
+
 	    vtbl->svt_get(aTHX_ sv, mg);
 
 	    /* guard against magic having been deleted - eg FETCH calling
@@ -229,7 +235,9 @@ Perl_mg_get(pTHX_ SV *sv)
 	}
     }
 
-    restore_magic(INT2PTR(void *, (IV)mgs_ix));
+    if (saved)
+	restore_magic(INT2PTR(void *, (IV)mgs_ix));
+
     return 0;
 }
 
@@ -1159,11 +1167,16 @@ Perl_magic_setenv(pTHX_ SV *sv, MAGIC *mg)
 {
     dVAR;
     STRLEN len = 0, klen;
-    const char *s = SvOK(sv) ? SvPV_const(sv,len) : "";
-    const char * const ptr = MgPV_const(mg,klen);
-    my_setenv(ptr, s);
+    const char * const key = MgPV_const(mg,klen);
+    const char *s = "";
 
     PERL_ARGS_ASSERT_MAGIC_SETENV;
+
+    if (SvOK(sv)) {
+	s = SvPV_const(sv,len);
+	SvPOK_only(sv); /* environment variables are strings, period */
+    }
+    my_setenv(key, s); /* does the deed */
 
 #ifdef DYNAMIC_ENV_FETCH
      /* We just undefd an environment var.  Is a replacement */
@@ -1207,7 +1220,7 @@ Perl_magic_setenv(pTHX_ SV *sv, MAGIC *mg)
 	    } while (my_trnlnm(s, pathbuf, i++) && (elt = pathbuf));
 	}
 #endif /* VMS */
-	if (s && klen == 4 && strEQ(ptr,"PATH")) {
+	if (s && klen == 4 && strEQ(key,"PATH")) {
 	    const char * const strend = s + len;
 
 	    while (s < strend) {
