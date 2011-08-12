@@ -738,6 +738,7 @@ Set the actual length of the string which is in the SV.  See C<SvIV_set>.
 
 #define SvIsSTRING(sv)		((SvFLAGS(sv) & (SVf_IOK|SVf_NOK|SVf_POK)) == SVf_POK)
 #define SvIsNUMBER(sv)		(SvNIOK(sv) && !SvPOK(sv))
+#define SvIsBOOLEAN(sv)		(SvPOK(sv) && (SvPVX_const(sv) == PL_Yes || SvPVX_const(sv) == PL_No))
 
 #if defined(__GNUC__) && !defined(PERL_GCC_BRACE_GROUPS_FORBIDDEN)
 #define assert_not_ROK(sv)	({assert(!SvROK(sv) || !SvRV(sv));}),
