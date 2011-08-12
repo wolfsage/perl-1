@@ -978,6 +978,7 @@ static const struct body_details bodies_by_type[] = {
 #ifdef PURIFY
 
 #define new_XNV()	safemalloc(sizeof(XPVNV))
+#define new_XPVIV()	safemalloc(sizeof(XPVIV))
 #define new_XPVNV()	safemalloc(sizeof(XPVNV))
 #define new_XPVMG()	safemalloc(sizeof(XPVMG))
 
@@ -986,6 +987,7 @@ static const struct body_details bodies_by_type[] = {
 #else /* !PURIFY */
 
 #define new_XNV()	new_body_allocated(SVt_NV)
+#define new_XPVIV()	new_body_allocated(SVt_PVIV)
 #define new_XPVNV()	new_body_allocated(SVt_PVNV)
 #define new_XPVMG()	new_body_allocated(SVt_PVMG)
 
@@ -13495,29 +13497,27 @@ Perl_init_constants(pTHX)
     SvFLAGS(&PL_sv_undef)	= SVf_READONLY|SVt_NULL;
     SvANY(&PL_sv_undef)		= NULL;
 
-    SvANY(&PL_sv_no)		= new_XPVNV();
+    SvANY(&PL_sv_no)		= new_XPVIV();
     SvREFCNT(&PL_sv_no)		= (~(U32)0)/2;
-    SvFLAGS(&PL_sv_no)		= SVt_PVNV|SVf_READONLY
-				  |SVp_IOK|SVf_IOK|SVp_NOK|SVf_NOK
+    SvFLAGS(&PL_sv_no)		= SVt_PVIV|SVf_READONLY
+				  |SVp_IOK|SVf_IOK
 				  |SVp_POK|SVf_POK;
 
-    SvANY(&PL_sv_yes)		= new_XPVNV();
+    SvANY(&PL_sv_yes)		= new_XPVIV();
     SvREFCNT(&PL_sv_yes)	= (~(U32)0)/2;
-    SvFLAGS(&PL_sv_yes)		= SVt_PVNV|SVf_READONLY
-				  |SVp_IOK|SVf_IOK|SVp_NOK|SVf_NOK
+    SvFLAGS(&PL_sv_yes)		= SVt_PVIV|SVf_READONLY
+				  |SVp_IOK|SVf_IOK
 				  |SVp_POK|SVf_POK;
 
     SvPV_set(&PL_sv_no, (char*)PL_No);
     SvCUR_set(&PL_sv_no, 0);
     SvLEN_set(&PL_sv_no, 0);
     SvIV_set(&PL_sv_no, 0);
-    SvNV_set(&PL_sv_no, 0);
 
     SvPV_set(&PL_sv_yes, (char*)PL_Yes);
     SvCUR_set(&PL_sv_yes, 1);
     SvLEN_set(&PL_sv_yes, 0);
     SvIV_set(&PL_sv_yes, 1);
-    SvNV_set(&PL_sv_yes, 1);
 }
 
 /*
