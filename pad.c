@@ -1243,12 +1243,14 @@ S_pad_findlex(pTHX_ const char *namepv, STRLEN namelen, U32 flags, const CV* cv,
 	   type as the source, independent of the flags set, and on it being
 	   "good" and only copying flag bits and pointers that it understands.
 	*/
-	SV *new_namesv = newSVsv(*out_name_sv);
 	AV *  const ocomppad_name = PL_comppad_name;
 	PAD * const ocomppad = PL_comppad;
 	PL_comppad_name = MUTABLE_AV(AvARRAY(padlist)[0]);
 	PL_comppad = MUTABLE_AV(AvARRAY(padlist)[1]);
 	PL_curpad = AvARRAY(PL_comppad);
+	SV *new_namesv = newSVsv(*out_name_sv);
+	if (SvTYPE(new_namesv) < SVt_PVNV)
+	    sv_upgrade(new_namesv, SVt_PVNV); /* pad names use SvNVX */
 
 	new_offset
 	    = pad_alloc_name(new_namesv,

@@ -4038,8 +4038,14 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
 	    goto copy_iv;	/* IOK is only possibility */
 	if (!SvOK(sstr))
 	    goto undef_sstr;
-	if (dtype < SVt_PVIV)
-	    sv_upgrade(dstr, SVt_PVIV);
+	if (SvIOK(sstr)) {
+	    if (dtype < SVt_PVIV)
+		sv_upgrade(dstr, SVt_PVIV);
+	}
+	else {
+	    if (dtype < SVt_PV)
+		sv_upgrade(dstr, SVt_PV);
+	}
 	break;
 
     case SVt_PVNV:
@@ -4056,9 +4062,13 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
 	    if (dtype < SVt_PVIV)
 		sv_upgrade(dstr, SVt_PVIV);
 	}
-	else {
+	else if (SvNOK(sstr)) {
 	    if (dtype < SVt_PVNV)
 		sv_upgrade(dstr, SVt_PVNV);
+	}
+	else {
+	    if (dtype < SVt_PV)
+		sv_upgrade(dstr, SVt_PV);
 	}
 	break;
 
