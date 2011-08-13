@@ -978,7 +978,6 @@ static const struct body_details bodies_by_type[] = {
 #ifdef PURIFY
 
 #define new_XNV()	safemalloc(sizeof(XPVNV))
-#define new_XPVIV()	safemalloc(sizeof(XPVIV))
 #define new_XPVNV()	safemalloc(sizeof(XPVNV))
 #define new_XPVMG()	safemalloc(sizeof(XPVMG))
 
@@ -987,7 +986,6 @@ static const struct body_details bodies_by_type[] = {
 #else /* !PURIFY */
 
 #define new_XNV()	new_body_allocated(SVt_NV)
-#define new_XPVIV()	new_body_allocated(SVt_PVIV)
 #define new_XPVNV()	new_body_allocated(SVt_PVNV)
 #define new_XPVMG()	new_body_allocated(SVt_PVMG)
 
@@ -3957,8 +3955,10 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
 	    return;
 	}
 	break;
+
     case SVt_IV:
 	if (SvIOK(sstr)) {
+	  copy_iv:
 	    switch (dtype) {
 	    case SVt_NULL:
 		sv_upgrade(dstr, SVt_IV);
@@ -3989,7 +3989,10 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
 	break;
 
     case SVt_NV:
+	if (SvIOK(sstr))
+	    goto copy_iv;
 	if (SvNOK(sstr)) {
+	  copy_nv:
 	    switch (dtype) {
 	    case SVt_NULL:
 	    case SVt_IV:
@@ -4024,50 +4027,40 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
 	/* Fall through */
 #endif
     case SVt_PV:
-	if (SvOK(sstr)) {
-	    if (dtype < SVt_PV)
-		sv_upgrade(dstr, SVt_PV);
-	    break;
-	}
-	goto undef_sstr;
+	if (!SvOK(sstr))
+	    goto undef_sstr;
+	if (dtype < SVt_PV)
+	    sv_upgrade(dstr, SVt_PV);
+	break;
 
     case SVt_PVIV:
-	if (SvIsNUMBER(sstr)) {
-	    if (dtype < SVt_IV) {
-		sv_upgrade(dstr, SVt_IV);
-		goto end_of_first_switch;
-	    }
-	}
-	if (SvOK(sstr)) {
-	    if (dtype < SVt_PVIV)
-		sv_upgrade(dstr, SVt_PVIV);
-	    break;
-	}
-	goto undef_sstr;
+	if (SvIsNUMBER(sstr))
+	    goto copy_iv;	/* IOK is only possibility */
+	if (!SvOK(sstr))
+	    goto undef_sstr;
+	if (dtype < SVt_PVIV)
+	    sv_upgrade(dstr, SVt_PVIV);
+	break;
 
     case SVt_PVNV:
 	if (SvIsNUMBER(sstr)) {
-	    switch (SvFLAGS(sstr) & (SVp_IOK|SVp_NOK)) {
-	    case SVp_NOK:
-		if (dtype < SVt_NV) {
-		    sv_upgrade(dstr, SVt_NV);
-		    goto end_of_first_switch;
-		}
-		break;
-	    case SVp_IOK:
-		if (dtype < SVt_IV) {
-		    sv_upgrade(dstr, SVt_IV);
-		    goto end_of_first_switch;
-		}
-		break;
-	    }
+	    if (SvIOK(sstr))
+		goto copy_iv;
+	    else
+		goto copy_nv;
 	}
-	if (SvOK(sstr)) {
+	if (!SvOK(sstr))
+	    goto undef_sstr;
+	if (SvIOK(sstr)) {
+	    /* lower upgrade is fine because the NV is redundant with the IV */
+	    if (dtype < SVt_PVIV)
+		sv_upgrade(dstr, SVt_PVIV);
+	}
+	else {
 	    if (dtype < SVt_PVNV)
 		sv_upgrade(dstr, SVt_PVNV);
-	    break;
 	}
-	goto undef_sstr;
+	break;
 
     default:
 	{
@@ -4356,9 +4349,6 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
                 SvTEMP_off(sstr);
             }
         }
-	if (sflags & SVp_NOK) {
-	    SvNV_set(dstr, SvNVX(sstr));
-	}
 	if (sflags & SVp_IOK) {
 	    SvIV_set(dstr, SvIVX(sstr));
 	    /* Must do this otherwise some other overloaded use of 0x80000000
@@ -4366,7 +4356,13 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
 	    if (sflags & SVf_IVisUV)
 		SvIsUV_on(dstr);
 	}
-	SvFLAGS(dstr) |= sflags & (SVf_IOK|SVp_IOK|SVf_NOK|SVp_NOK|SVf_UTF8);
+	SvFLAGS(dstr) |= sflags & (SVf_IOK|SVp_IOK|SVf_UTF8);
+	/* NV assignment can be skipped when IOK, to reduce upgrades; see PVNV case in top switch */
+	if ((sflags & SVp_NOK) && PL_valid_types_NV_set[dtype & SVt_MASK]) {
+	    SvNV_set(dstr, SvNVX(sstr));
+	    SvFLAGS(dstr) |= sflags & (SVf_NOK|SVp_NOK);
+	}
+
 	{
 	    const MAGIC * const smg = SvVSTRING_mg(sstr);
 	    if (smg) {
@@ -13497,27 +13493,29 @@ Perl_init_constants(pTHX)
     SvFLAGS(&PL_sv_undef)	= SVf_READONLY|SVt_NULL;
     SvANY(&PL_sv_undef)		= NULL;
 
-    SvANY(&PL_sv_no)		= new_XPVIV();
+    SvANY(&PL_sv_no)		= new_XPVNV();
     SvREFCNT(&PL_sv_no)		= (~(U32)0)/2;
-    SvFLAGS(&PL_sv_no)		= SVt_PVIV|SVf_READONLY
-				  |SVp_IOK|SVf_IOK
+    SvFLAGS(&PL_sv_no)		= SVt_PVNV|SVf_READONLY
+				  |SVp_IOK|SVf_IOK|SVp_NOK|SVf_NOK
 				  |SVp_POK|SVf_POK;
 
-    SvANY(&PL_sv_yes)		= new_XPVIV();
+    SvANY(&PL_sv_yes)		= new_XPVNV();
     SvREFCNT(&PL_sv_yes)	= (~(U32)0)/2;
-    SvFLAGS(&PL_sv_yes)		= SVt_PVIV|SVf_READONLY
-				  |SVp_IOK|SVf_IOK
+    SvFLAGS(&PL_sv_yes)		= SVt_PVNV|SVf_READONLY
+				  |SVp_IOK|SVf_IOK|SVp_NOK|SVf_NOK
 				  |SVp_POK|SVf_POK;
 
     SvPV_set(&PL_sv_no, (char*)PL_No);
     SvCUR_set(&PL_sv_no, 0);
     SvLEN_set(&PL_sv_no, 0);
     SvIV_set(&PL_sv_no, 0);
+    SvNV_set(&PL_sv_no, 0);
 
     SvPV_set(&PL_sv_yes, (char*)PL_Yes);
     SvCUR_set(&PL_sv_yes, 1);
     SvLEN_set(&PL_sv_yes, 0);
     SvIV_set(&PL_sv_yes, 1);
+    SvNV_set(&PL_sv_yes, 1);
 }
 
 /*

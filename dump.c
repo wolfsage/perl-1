@@ -472,23 +472,23 @@ Perl_sv_peek(pTHX_ SV *sv)
 	}
 	else if (sv == &PL_sv_no) {
 	    sv_catpv(t, "SV_NO");
-	    if (!(SvFLAGS(sv) & (SVf_ROK|SVf_OOK|SVs_OBJECT|SVf_IVisUV|
+	    if (!(SvFLAGS(sv) & (SVf_ROK|SVf_OOK|SVs_OBJECT|
 				 SVs_GMG|SVs_SMG|SVs_RMG)) &&
-		!(~SvFLAGS(sv) & (SVf_POK|SVf_IOK|SVf_READONLY|
-				  SVp_POK|SVp_IOK)) &&
+		!(~SvFLAGS(sv) & (SVf_POK|SVf_NOK|SVf_READONLY|
+				  SVp_POK|SVp_NOK)) &&
 		SvCUR(sv) == 0 &&
-		SvIVX(sv) == 0)
+		SvNVX(sv) == 0.0)
 		goto finish;
 	}
 	else if (sv == &PL_sv_yes) {
 	    sv_catpv(t, "SV_YES");
-	    if (!(SvFLAGS(sv) & (SVf_ROK|SVf_OOK|SVs_OBJECT|SVf_IVisUV|
+	    if (!(SvFLAGS(sv) & (SVf_ROK|SVf_OOK|SVs_OBJECT|
 				 SVs_GMG|SVs_SMG|SVs_RMG)) &&
-		!(~SvFLAGS(sv) & (SVf_POK|SVf_IOK|SVf_READONLY|
-				  SVp_POK|SVp_IOK)) &&
+		!(~SvFLAGS(sv) & (SVf_POK|SVf_NOK|SVf_READONLY|
+				  SVp_POK|SVp_NOK)) &&
 		SvCUR(sv) == 1 &&
 		SvPVX_const(sv) && *SvPVX_const(sv) == '1' &&
-		SvIVX(sv) == 1)
+		SvNVX(sv) == 1.0)
 		goto finish;
 	}
 	else {
