@@ -4038,7 +4038,7 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
 	    goto copy_iv;	/* IOK is only possibility */
 	if (!SvOK(sstr))
 	    goto undef_sstr;
-	if (SvIOK(sstr)) {
+	if (SvIOKp(sstr)) {
 	    if (dtype < SVt_PVIV)
 		sv_upgrade(dstr, SVt_PVIV);
 	}
@@ -4057,12 +4057,12 @@ Perl_sv_setsv_flags(pTHX_ SV *dstr, register SV* sstr, const I32 flags)
 	}
 	if (!SvOK(sstr))
 	    goto undef_sstr;
-	if (SvIOK(sstr)) {
+	if (SvIOKp(sstr)) {
 	    /* lower upgrade is fine because the NV is redundant with the IV */
 	    if (dtype < SVt_PVIV)
 		sv_upgrade(dstr, SVt_PVIV);
 	}
-	else if (SvNOK(sstr)) {
+	else if (SvNOKp(sstr)) {
 	    if (dtype < SVt_PVNV)
 		sv_upgrade(dstr, SVt_PVNV);
 	}
