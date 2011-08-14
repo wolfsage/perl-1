@@ -2788,6 +2788,7 @@ PP(pp_stat)
             goto do_fstat_have_io; 
         }
         
+	SvTAINTED_off(PL_statname); /* previous tainting irrelevant */
 	sv_setpv(PL_statname, SvPV_nomg_const_nolen(sv));
 	PL_statgv = NULL;
 	PL_laststype = PL_op->op_type;
