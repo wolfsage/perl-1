@@ -2176,7 +2176,7 @@ Perl_magic_setpos(pTHX_ SV *sv, MAGIC *mg)
 	found->mg_len = -1;
 	return 0;
     }
-    len = SvPOK(lsv) ? SvCUR(lsv) : sv_len(lsv);
+    len = SvPOK_nog(lsv) ? SvCUR(lsv) : sv_len(lsv);
 
     pos = SvIV(sv) - CopARYBASE_get(PL_curcop);
 
