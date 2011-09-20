@@ -1645,16 +1645,16 @@ Like sv_utf8_upgrade, but doesn't do magic on C<sv>
 #define SvPVutf8x_force(sv, lp) sv_pvutf8n_force(sv, &lp)
 #define SvPVbytex_force(sv, lp) sv_pvbyten_force(sv, &lp)
 
-#define SvTRUE(sv) (						\
-      !sv							\
-	? 0							\
-    : SvGMAGICAL(sv)						\
-	? sv_2bool(sv)						\
-    : SvTRUE_common(sv, sv_2bool_flags(sv, 0)))
-#define SvTRUE_nomg(sv) (					\
-      !sv							\
-	? 0							\
-    : SvTRUE_common(sv, sv_2bool_flags(sv, 0)))
+#define SvTRUE(sv)        ((sv) && (SvGMAGICAL(sv) ? sv_2bool(sv) : SvTRUE_common(sv, sv_2bool_nomg(sv))))
+#define SvTRUE_nomg(sv)   ((sv) && (                                SvTRUE_common(sv, sv_2bool_nomg(sv))))
+#define SvTRUE_common(sv,fallback) (			\
+      !SvOK(sv)						\
+	? 0						\
+    : (SvFLAGS(sv) & (SVf_POK|SVf_IOK|SVf_NOK))		\
+	? (   (SvPOK(sv) && SvPVXtrue(sv))		\
+	   || (SvIOK(sv) && SvIVX(sv) != 0)		\
+	   || (SvNOK(sv) && SvNVX(sv) != 0.0))		\
+    : (fallback))
 
 #if defined(__GNUC__) && !defined(PERL_GCC_BRACE_GROUPS_FORBIDDEN)
 
@@ -1668,21 +1668,13 @@ Like sv_utf8_upgrade, but doesn't do magic on C<sv>
 #  define SvPVutf8x(sv, lp) ({SV *_sv = (sv); SvPVutf8(_sv, lp); })
 #  define SvPVbytex(sv, lp) ({SV *_sv = (sv); SvPVbyte(_sv, lp); })
 #  define SvPVbytex_nolen(sv) ({SV *_sv = (sv); SvPVbyte_nolen(_sv); })
-#  define SvTRUE_common(sv,fallback) (				\
-     !SvOK(sv)							\
-	? 0							\
-    : SvIOK(sv)							\
-	? SvIVX(sv) != 0					\
-    : SvNOK(sv)							\
-	? SvNVX(sv) != 0.0					\
-    : SvPOK(sv)							\
-	? ({XPV *nxpv = (XPV*)SvANY(sv);			\
-            nxpv &&						\
-	     (nxpv->xpv_cur > 1 ||				\
-	     (nxpv->xpv_cur && *(sv)->sv_u.svu_pv != '0'));})	\
-    : (fallback))
 #  define SvTRUEx(sv)      ({SV *_sv = (sv); SvTRUE(_sv); })
 #  define SvTRUEx_nomg(sv) ({SV *_sv = (sv); SvTRUE_nomg(_sv); })
+#  define SvPVXtrue(sv)						\
+    ({XPV *nxpv;						\
+     (nxpv = (XPV*)SvANY(sv))					\
+      && (nxpv->xpv_cur > 1					\
+	  || (nxpv->xpv_cur && *(sv)->sv_u.svu_pv != '0'));})
 
 #else /* __GNUC__ */
 
@@ -1699,20 +1691,12 @@ Like sv_utf8_upgrade, but doesn't do magic on C<sv>
 #  define SvPVutf8x(sv, lp) ((PL_Sv = (sv)), SvPVutf8(PL_Sv, lp))
 #  define SvPVbytex(sv, lp) ((PL_Sv = (sv)), SvPVbyte(PL_Sv, lp))
 #  define SvPVbytex_nolen(sv) ((PL_Sv = (sv)), SvPVbyte_nolen(PL_Sv))
-#  define SvTRUE_common(sv,fallback) (				\
-      !SvOK(sv)							\
-	? 0							\
-    : SvIOK(sv)							\
-	? SvIVX(sv) != 0					\
-    : SvNOK(sv)							\
-	? SvNVX(sv) != 0.0					\
-    : SvPOK(sv)							\
-	? ((PL_Xpv = (XPV*)SvANY(PL_Sv = (sv))) &&		\
-	    (PL_Xpv->xpv_cur > 1 ||				\
-	    (PL_Xpv->xpv_cur && *PL_Sv->sv_u.svu_pv != '0')))	\
-    : (fallback))
 #  define SvTRUEx(sv)      ((PL_Sv = (sv)), SvTRUE(PL_Sv))
 #  define SvTRUEx_nomg(sv) ((PL_Sv = (sv)), SvTRUE_nomg(PL_Sv))
+#  define SvPVXtrue(sv)						\
+    ((PL_Xpv = (XPV*)SvANY(PL_Sv = (sv)))			\
+     && (PL_Xpv->xpv_cur > 1					\
+	 || (PL_Xpv->xpv_cur && *PL_Sv->sv_u.svu_pv != '0')))
 #endif /* __GNU__ */
 
 #define SvIsCOW(sv)	((SvFLAGS(sv) & (SVf_FAKE | SVf_READONLY)) == \
@@ -1833,6 +1817,7 @@ mg.c:1024: warning: left-hand operand of comma expression has no effect
 #define sv_cmp_locale(sv1, sv2) sv_cmp_locale_flags(sv1, sv2, SV_GMAGIC)
 #define sv_collxfrm(sv, nxp) sv_cmp_flags(sv, nxp, SV_GMAGIC)
 #define sv_2bool(sv) sv_2bool_flags(sv, SV_GMAGIC)
+#define sv_2bool_nomg(sv) sv_2bool_flags(sv, 0)
 #define sv_insert(bigstr, offset, len, little, littlelen)		\
 	Perl_sv_insert_flags(aTHX_ (bigstr),(offset), (len), (little),	\
 			     (littlelen), SV_GMAGIC)
