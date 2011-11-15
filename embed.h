@@ -1389,6 +1389,7 @@
 #define scalarseq(a)		S_scalarseq(aTHX_ a)
 #define search_const(a)		S_search_const(aTHX_ a)
 #define simplify_sort(a)	S_simplify_sort(aTHX_ a)
+#define simplify_sort_aelem(a)	S_simplify_sort_aelem(aTHX_ a)
 #define too_few_arguments(a,b)	S_too_few_arguments(aTHX_ a,b)
 #define too_many_arguments(a,b)	S_too_many_arguments(aTHX_ a,b)
 #  endif
