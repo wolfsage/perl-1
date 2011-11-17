@@ -78,8 +78,6 @@
      length() used on @array (did you mean "scalar(@array)"?)
      length() used on %hash (did you mean "scalar(keys %hash)"?)
 
-     cat
-    
      /---/ should probably be written as "---"
         join(/---/, @foo);
 
