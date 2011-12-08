@@ -56,7 +56,7 @@ In the unlikely case of a SV requiring more complex initialisation, you
 can create an empty SV with newSV(len).  If C<len> is 0 an empty SV of
 type NULL is returned, else an SV of type PV is returned with len + 1 (for
 the NUL) bytes of storage allocated, accessible via SvPVX.  In both cases
-the SV has value undef.
+the SV has the undef value.
 
     SV *sv = newSV(0);   /* no storage allocated  */
     SV *sv = newSV(10);  /* 10 (+1) bytes of uninitialised storage allocated  */
@@ -300,7 +300,7 @@ pointer in an SV, you can use the following three macros instead:
 These will tell you if you truly have an integer, double, or string pointer
 stored in your SV.  The "p" stands for private.
 
-The are various ways in which the private and public flags may differ.
+There are various ways in which the private and public flags may differ.
 For example, a tied SV may have a valid underlying value in the IV slot
 (so SvIOKp is true), but the data should be accessed via the FETCH
 routine rather than directly, so SvIOK is false. Another is when
@@ -324,7 +324,7 @@ The second method both creates the AV and initially populates it with SVs:
 The second argument points to an array containing C<num> C<SV*>'s.  Once the
 AV has been created, the SVs can be destroyed, if so desired.
 
-Once the AV has been created, the following operations are possible on AVs:
+Once the AV has been created, the following operations are possible on it:
 
     void  av_push(AV*, SV*);
     SV*   av_pop(AV*);
@@ -342,7 +342,7 @@ Here are some other functions:
     SV**  av_fetch(AV*, I32 key, I32 lval);
     SV**  av_store(AV*, I32 key, SV* val);
 
-The C<av_len> function returns the highest index value in array (just
+The C<av_len> function returns the highest index value in an array (just
 like $#array in Perl).  If the array is empty, -1 is returned.  The
 C<av_fetch> function returns the value at index C<key>, but if C<lval>
 is non-zero, then C<av_fetch> will store an undef value at that index.
@@ -352,6 +352,8 @@ for taking care of that, and if C<av_store> returns NULL, the caller will
 have to decrement the reference count to avoid a memory leak.  Note that
 C<av_fetch> and C<av_store> both return C<SV**>'s, not C<SV*>'s as their
 return value.
+
+A few more:
 
     void  av_clear(AV*);
     void  av_undef(AV*);
@@ -380,7 +382,7 @@ To create an HV, you use the following routine:
 
     HV*  newHV();
 
-Once the HV has been created, the following operations are possible on HVs:
+Once the HV has been created, the following operations are possible on it:
 
     SV**  hv_store(HV*, const char* key, U32 klen, SV* val, U32 hash);
     SV**  hv_fetch(HV*, const char* key, U32 klen, I32 lval);
@@ -399,7 +401,8 @@ C<SV*>.  To access the scalar value, you must first dereference the return
 value.  However, you should check to make sure that the return value is
 not NULL before dereferencing it.
 
-These two functions check if a hash table entry exists, and deletes it.
+The first of these two functions checks if a hash table entry exists, and the 
+second deletes it.
 
     bool  hv_exists(HV*, const char* key, U32 klen);
     SV*   hv_delete(HV*, const char* key, U32 klen, I32 flags);
@@ -416,7 +419,7 @@ Like their AV counterparts, C<hv_clear> deletes all the entries in the hash
 table but does not actually delete the hash table.  The C<hv_undef> deletes
 both the entries and the hash table itself.
 
-Perl keeps the actual data in linked list of structures with a typedef of HE.
+Perl keeps the actual data in a linked list of structures with a typedef of HE.
 These contain the actual key and value pointers (plus extra administrative
 overhead).  The key is a string pointer; the value is an C<SV*>.  However,
 once you have an C<HE*>, to get the actual key and value, use the routines
@@ -770,7 +773,7 @@ To create a mortal variable, use the functions:
 The first call creates a mortal SV (with no value), the second converts an existing
 SV to a mortal SV (and thus defers a call to C<SvREFCNT_dec>), and the
 third creates a mortal copy of an existing SV.
-Because C<sv_newmortal> gives the new SV no value,it must normally be given one
+Because C<sv_newmortal> gives the new SV no value, it must normally be given one
 via C<sv_setpv>, C<sv_setiv>, etc. :
 
     SV *tmp = sv_newmortal();
@@ -785,7 +788,7 @@ You should be careful about creating mortal variables.  Strange things
 can happen if you make the same value mortal within multiple contexts,
 or if you make a variable mortal multiple times. Thinking of "Mortalization"
 as deferred C<SvREFCNT_dec> should help to minimize such problems.
-For example if you are passing an SV which you I<know> has high enough REFCNT
+For example if you are passing an SV which you I<know> has a high enough REFCNT
 to survive its use on the stack you need not do any mortalization.
 If you are not sure then doing an C<SvREFCNT_inc> and C<sv_2mortal>, or
 making a C<sv_mortalcopy> is safer.
