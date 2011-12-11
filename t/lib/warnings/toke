@@ -998,3 +998,10 @@ print "ok\n" if
     $@ =~ /Can't find string terminator "\xab" anywhere before EOF/;
 EXPECT
 ok
+########
+# toke.c
+# [perl #16249]
+print '';
+eval this_method_is_fake ();
+EXPECT
+Undefined subroutine &main::this_method_is_fake called at - line 4.
