@@ -1629,7 +1629,13 @@ sub pfixop {
     my($op, $cx, $name, $prec, $flags) = (@_, 0);
     my $kid = $op->first;
     $kid = $self->deparse($kid, $prec);
-    return $self->maybe_parens(($flags & POSTFIX) ? "$kid$name" : "$name$kid",
+    return $self->maybe_parens(($flags & POSTFIX)
+				 ? "$kid$name"
+				   # avoid confusion with filetests
+				 : $name eq '-'
+				   && $kid =~ /^[a-zA-Z](?!\w)/
+					? "$name($kid)"
+					: "$name$kid",
 			       $cx, $prec);
 }
 
@@ -1660,7 +1666,7 @@ sub pp_not {
     my $self = shift;
     my($op, $cx) = @_;
     if ($cx <= 4) {
-	$self->pfixop($op, $cx, $self->keyword("not")." ", 4);
+	$self->listop($op, $cx, "not", $op->first);
     } else {
 	$self->pfixop($op, $cx, "!", 21);	
     }
@@ -1668,7 +1674,7 @@ sub pp_not {
 
 sub unop {
     my $self = shift;
-    my($op, $cx, $name) = @_;
+    my($op, $cx, $name, $nollafr) = @_;
     my $kid;
     if ($op->flags & OPf_KIDS) {
 	$kid = $op->first;
@@ -1684,10 +1690,18 @@ sub unop {
 	    $kid = $kid->first;
 	}
 
+	if ($nollafr) {
+	    ($kid = $self->deparse($kid, 16)) =~ s/^\cS//;
+	    return $self->maybe_parens(
+			$self->keyword($name) . " $kid", $cx, 16
+		   );
+	}   
 	return $self->maybe_parens_unop($name, $kid, $cx);
     } else {
-	return $self->keyword($name)
-	  . ($op->flags & OPf_SPECIAL ? "()" : "");
+	return $self->maybe_parens(
+	    $self->keyword($name) . ($op->flags & OPf_SPECIAL ? "()" : ""),
+	    $cx, 16,
+	);
     }
 }
 
@@ -1762,7 +1776,11 @@ sub pp_gmtime { unop(@_, "gmtime") }
 sub pp_alarm { unop(@_, "alarm") }
 sub pp_sleep { maybe_targmy(@_, \&unop, "sleep") }
 
-sub pp_dofile { unop(@_, "do") }
+sub pp_dofile {
+    my $code = unop(@_, "do", 1); # llafr does not apply
+    if ($code =~ s/^((?:CORE::)?do) \{/$1({/) { $code .= ')' }
+    $code;
+}
 sub pp_entereval {
     unop(
       @_,
@@ -1867,9 +1885,13 @@ sub pp_require {
 	my $name = $self->const_sv($op->first)->PV;
 	$name =~ s[/][::]g;
 	$name =~ s/\.pm//g;
-	return "$opname $name";
+	return $self->maybe_parens("$opname $name", $cx, 16);
     } else {	
-	$self->unop($op, $cx, $op->first->private & OPpCONST_NOVER ? "no" : $opname);
+	$self->unop(
+	    $op, $cx,
+	    $op->first->private & OPpCONST_NOVER ? "no" : $opname,
+	    1, # llafr does not apply
+	);
     }
 }
 
@@ -1999,28 +2021,32 @@ sub loopex {
     my $self = shift;
     my ($op, $cx, $name) = @_;
     if (class($op) eq "PVOP") {
-	return "$name " . $op->pv;
+	$name .= " " . $op->pv;
     } elsif (class($op) eq "OP") {
-	return $name;
+	# no-op
     } elsif (class($op) eq "UNOP") {
-	# Note -- loop exits are actually exempt from the
-	# looks-like-a-func rule, but a few extra parens won't hurt
-	return $self->maybe_parens_unop($name, $op->first, $cx);
+	(my $kid = $self->deparse($op->first, 16)) =~ s/^\cS//;
+	$name .= " $kid";
     }
+    return $self->maybe_parens($name, $cx, 16);
 }
 
 sub pp_last { loopex(@_, "last") }
 sub pp_next { loopex(@_, "next") }
 sub pp_redo { loopex(@_, "redo") }
 sub pp_goto { loopex(@_, "goto") }
-sub pp_dump { loopex(@_, $_[0]->keyword("dump")) }
+sub pp_dump { loopex(@_, "CORE::dump") }
 
 sub ftst {
     my $self = shift;
     my($op, $cx, $name) = @_;
     if (class($op) eq "UNOP") {
 	# Genuine '-X' filetests are exempt from the LLAFR, but not
-	# l?stat(); for the sake of clarity, give'em all parens
+	# l?stat()
+	if ($name =~ /^-/) {
+	    (my $kid = $self->deparse($op->first, 16)) =~ s/^\cS//;
+	    return $self->maybe_parens("$name $kid", $cx, 16);
+	}
 	return $self->maybe_parens_unop($name, $op->first, $cx);
     } elsif (class($op) =~ /^(SV|PAD)OP$/) {
 	return $self->maybe_parens_func($name, $self->pp_gv($op, 1), $cx, 16);
@@ -2342,18 +2368,26 @@ sub pp_dorassign { logassignop(@_, "//=") }
 
 sub listop {
     my $self = shift;
-    my($op, $cx, $name, $kid) = @_;
+    my($op, $cx, $name, $kid, $nollafr) = @_;
     my(@exprs);
     my $parens = ($cx >= 5) || $self->{'parens'};
     $kid ||= $op->first->sibling;
-    return $self->keyword($name) if null $kid;
+    # If there are no arguments, add final parentheses (or parenthesize the
+    # whole thing if the llafr does not apply) to account for cases like
+    # (return)+1 or setpgrp()+1.  When the llafr does not apply, we use a
+    # precedence of 6 (< comma), as "return, 1" does not need parentheses.
+    if (null $kid) {
+	return $nollafr
+		? $self->maybe_parens($self->keyword($name), $cx, 7)
+		: $self->keyword($name) . '()' x (7 < $cx);
+    }
     my $first;
     $name = "socketpair" if $name eq "sockpair";
     my $fullname = $self->keyword($name);
     my $proto = prototype("CORE::$name");
     if (defined $proto
 	&& $proto =~ /^;?\*/
-	&& $kid->name eq "rv2gv") {
+	&& $kid->name eq "rv2gv" && !($kid->private & OPpLVAL_INTRO)) {
 	$first = $self->deparse($kid->first, 6);
     }
     else {
@@ -2362,10 +2396,12 @@ sub listop {
     if ($name eq "chmod" && $first =~ /^\d+$/) {
 	$first = sprintf("%#o", $first);
     }
-    $first = "+$first" if not $parens and substr($first, 0, 1) eq "(";
+    $first = "+$first"
+	if not $parens and not $nollafr and substr($first, 0, 1) eq "(";
     push @exprs, $first;
     $kid = $kid->sibling;
-    if (defined $proto && $proto =~ /^\*\*/ && $kid->name eq "rv2gv") {
+    if (defined $proto && $proto =~ /^\*\*/ && $kid->name eq "rv2gv"
+	 && !($kid->private & OPpLVAL_INTRO)) {
 	push @exprs, $self->deparse($kid->first, 6);
 	$kid = $kid->sibling;
     }
@@ -2376,7 +2412,9 @@ sub listop {
 	return "$exprs[0] = $fullname"
 	         . ($parens ? "($exprs[0])" : " $exprs[0]");
     }
-    if ($parens) {
+    if ($parens && $nollafr) {
+	return "($fullname " . join(", ", @exprs) . ")";
+    } elsif ($parens) {
 	return "$fullname(" . join(", ", @exprs) . ")";
     } else {
 	return "$fullname " . join(", ", @exprs);
@@ -2410,9 +2448,7 @@ sub pp_unshift { maybe_targmy(@_, \&listop, "unshift") }
 sub pp_reverse { listop(@_, "reverse") }
 sub pp_warn { listop(@_, "warn") }
 sub pp_die { listop(@_, "die") }
-# Actually, return is exempt from the LLAFR (see examples in this very
-# module!), but for consistency's sake, ignore that fact
-sub pp_return { listop(@_, "return") }
+sub pp_return { listop(@_, "return", undef, 1) } # llafr does not apply
 sub pp_open { listop(@_, "open") }
 sub pp_pipe_op { listop(@_, "pipe") }
 sub pp_tie { listop(@_, "tie") }
@@ -3495,6 +3531,7 @@ sub pp_entersub {
 	$args = join(", ", map($self->deparse($_, 6), @exprs));
     }
     if ($prefix or $amper) {
+	if ($kid eq '&') { $kid = "{$kid}" } # &{&} cannot be written as &&
 	if ($op->flags & OPf_STACKED) {
 	    return $prefix . $amper . $kid . "(" . $args . ")";
 	} else {
@@ -4367,7 +4404,11 @@ sub matchop {
 	carp("found ".$kid->name." where regcomp expected");
     } else {
 	($re, $quote) = $self->regcomp($kid, 21, $extended);
-	$rhs_bound_to_defsv = 1 if $kid->first->first->flags & OPf_SPECIAL;
+	my $matchop = $kid->first->first;
+	if ($matchop->name =~ /^(?:match|transr?|subst)\z/
+	   && $matchop->flags & OPf_SPECIAL) {
+	    $rhs_bound_to_defsv = 1;
+	}
     }
     my $flags = "";
     $flags .= "c" if $op->pmflags & PMf_CONTINUE;
