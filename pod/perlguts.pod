@@ -2775,7 +2775,7 @@ Not really. Just remember these things:
 =item *
 
 There's no way to tell if a string is UTF-8 or not. You can tell if an SV
-is UTF-8 by looking at is C<SvUTF8> flag. Don't forget to set the flag if
+is UTF-8 by looking at its C<SvUTF8> flag. Don't forget to set the flag if
 something should be UTF-8. Treat the flag as part of the PV, even though
 it's not - if you pass on the PV to somewhere, pass on the flag too.
 
