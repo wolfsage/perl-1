@@ -1196,7 +1196,7 @@ This routine returns a pointer to a C<MAGIC> structure stored in the SV.
 If the SV does not have that magical feature, C<NULL> is returned. If the
 SV has multiple instances of that magical feature, the first one will be
 returned. C<mg_findext> can be used to find a C<MAGIC> structure of an SV
-based on both it's magic type and it's magic virtual table:
+based on both its magic type and its magic virtual table:
 
     MAGIC *mg_findext(SV *sv, int type, MGVTBL *vtbl);
 
@@ -1507,7 +1507,7 @@ to use the macro:
 
     XPUSHs(SV*)
 
-This macro automatically adjust the stack for you, if needed.  Thus, you
+This macro automatically adjusts the stack for you, if needed.  Thus, you
 do not need to call C<EXTEND> to extend the stack.
 
 Despite their suggestions in earlier versions of this document the macros
@@ -1639,7 +1639,7 @@ function).
 
 =head2 PerlIO
 
-The most recent development releases of Perl has been experimenting with
+The most recent development releases of Perl have been experimenting with
 removing Perl's dependency on the "normal" standard I/O suite and allowing
 other stdio implementations to be used.  This involves creating a new
 abstraction layer that then calls whichever implementation of stdio Perl
@@ -2132,7 +2132,7 @@ function used within the Perl guts:
   S_incline(pTHX_ char *s)
 
 STATIC becomes "static" in C, and may be #define'd to nothing in some
-configurations in future.
+configurations in the future.
 
 A public function (i.e. part of the internal API, but not necessarily
 sanctioned for use in extensions) begins like this:
@@ -2224,7 +2224,7 @@ or to this otherwise:
 
         Perl_sv_setiv(sv, num);
 
-You have to do nothing new in your extension to get this; since
+You don't have to do anything new in your extension to get this; since
 the Perl library provides Perl_get_context(), it will all just
 work.
 
@@ -2412,7 +2412,7 @@ usually called within the sources as C<whatever(...)>.
 
 =item n
 
-This does not need a interpreter context, so the definition has no
+This does not need an interpreter context, so the definition has no
 C<pTHX>, and it follows that callers don't use C<aTHX>.  (See
 L</Background and PERL_IMPLICIT_CONTEXT>.)
 
