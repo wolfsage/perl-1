@@ -8212,26 +8212,36 @@ Perl_ck_defined(pTHX_ OP *o)		/* 19990527 MJD */
 {
     PERL_ARGS_ASSERT_CK_DEFINED;
 
-    if ((o->op_flags & OPf_KIDS)) {
-	switch (cUNOPo->op_first->op_type) {
-	case OP_RV2AV:
-	case OP_PADAV:
-	case OP_AASSIGN:		/* Is this a good idea? */
-	    Perl_ck_warner_d(aTHX_ packWARN(WARN_DEPRECATED),
+    if (ckWARN_d(WARN_DEPRECATED)) {
+	register OP *kid = o->op_flags & OPf_KIDS ? cUNOPo->op_first : NULL;
+
+	if (kid) {
+	    OPCODE type = kid->op_type;
+
+	    /* OP_AASSIGN? Walk the op tree to get what's being assigned to */
+	    if (type == OP_AASSIGN) {
+		type = cUNOPx(cBINOPx(kid)->op_last)->op_first->op_sibling->op_type;
+	    }
+
+	    switch (type) {
+		case OP_RV2AV:
+		case OP_PADAV:
+		    Perl_ck_warner_d(aTHX_ packWARN(WARN_DEPRECATED),
 			   "defined(@array) is deprecated");
-	    Perl_ck_warner_d(aTHX_ packWARN(WARN_DEPRECATED),
+		    Perl_ck_warner_d(aTHX_ packWARN(WARN_DEPRECATED),
 			   "\t(Maybe you should just omit the defined()?)\n");
-	break;
-	case OP_RV2HV:
-	case OP_PADHV:
-	    Perl_ck_warner_d(aTHX_ packWARN(WARN_DEPRECATED),
+		    break;
+		case OP_RV2HV:
+		case OP_PADHV:
+		    Perl_ck_warner_d(aTHX_ packWARN(WARN_DEPRECATED),
 			   "defined(%%hash) is deprecated");
-	    Perl_ck_warner_d(aTHX_ packWARN(WARN_DEPRECATED),
+		    Perl_ck_warner_d(aTHX_ packWARN(WARN_DEPRECATED),
 			   "\t(Maybe you should just omit the defined()?)\n");
-	    break;
-	default:
-	    /* no warning */
-	    break;
+		    break;
+		default:
+		    /* no warning */
+		    break;
+	    }
 	}
     }
     return ck_rfun(o);
