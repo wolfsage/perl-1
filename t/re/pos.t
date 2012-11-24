@@ -11,7 +11,9 @@ BEGIN {
     require './test.pl';
 }
 
-plan tests => 4;
+plan tests => 8;
+
+##  Early bailout of pp_match because matchlen > stringlen
 
 # With a var
 {
@@ -37,4 +39,30 @@ plan tests => 4;
 	m/toolongtomatch/g;
 
 	is(pos, undef, 'pos undef after failed match');
+}
+
+## Early bail out of pp_match because ?? already matched
+
+# With a var
+{
+	my $str = "bird";
+
+	for (1..2) {
+		if ($str =~ m?bird?g) {
+			is(pos($str),  4, 'pos correct');
+		} else {
+			is(pos($str), undef, 'pos undef after failed match');
+		}
+	}
+}
+
+# With $_
+{
+	for (1..2) {
+		if (m?\d?g) {
+			is(pos,  1, 'pos correct');
+		} else {
+			is(pos, undef, 'pos undef after failed match');
+		}
+	}
 }

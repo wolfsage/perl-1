@@ -1362,11 +1362,7 @@ PP(pp_match)
 #endif
     ) {
         DEBUG_r(PerlIO_printf(Perl_debug_log, "?? already matched once"));
-
-	/* Should this clear pos if we exit here??? -- alh */
-	if (gimme == G_ARRAY)
-	    RETURN;
-	RETPUSHNO;
+	goto nope;
     }
 
 
