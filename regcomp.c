@@ -9281,7 +9281,7 @@ S_reg(pTHX_ RExC_state_t *pRExC_state, I32 paren, I32 *flagp,U32 depth)
                 goto parse_rest;
             } /* end switch */
 	}
-	else {                  /* (...) */
+	else if (!(RExC_pm_flags & PMf_NOCAPTURE)) { /* (...) */
 	  capturing_parens:
 	    parno = RExC_npar;
 	    RExC_npar++;
@@ -9302,6 +9302,8 @@ S_reg(pTHX_ RExC_state_t *pRExC_state, I32 paren, I32 *flagp,U32 depth)
             Set_Node_Length(ret, 1); /* MJD */
             Set_Node_Offset(ret, RExC_parse); /* MJD */
 	    is_open = 1;
+	} else {
+	    ret = NULL;
 	}
     }
     else                        /* ! paren */

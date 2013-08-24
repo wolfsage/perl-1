@@ -9535,6 +9535,7 @@ S_pmflag(pTHX_ const char* const valid_flags, U32 * pmfl, char** s, char* charse
         case ONCE_PAT_MOD:        *pmfl |= PMf_KEEP; break;
         case KEEPCOPY_PAT_MOD:    *pmfl |= RXf_PMf_KEEPCOPY; break;
         case NONDESTRUCT_PAT_MOD: *pmfl |= PMf_NONDESTRUCT; break;
+	case NOCAPTURE_PAT_MOD:   *pmfl |= PMf_NOCAPTURE; break;
 	case LOCALE_PAT_MOD:
 	    if (*charset) {
 		goto multiple_charsets;
