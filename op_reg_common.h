@@ -33,6 +33,7 @@
 #define RXf_PMf_FOLD           (1 << (RXf_PMf_STD_PMMOD_SHIFT+2))    /* /i */
 #define RXf_PMf_EXTENDED       (1 << (RXf_PMf_STD_PMMOD_SHIFT+3))    /* /x */
 #define RXf_PMf_KEEPCOPY       (1 << (RXf_PMf_STD_PMMOD_SHIFT+4))    /* /p */
+#define RXf_PMf_NOCAPTURE      (1 << (RXf_PMf_STD_PMMOD_SHIFT+24))   /* /n */
 
 /* The character set for the regex is stored in a field of more than one bit
  * using an enum, for reasons of compactness and to ensure that the options are
@@ -96,7 +97,7 @@ get_regex_charset(const U32 flags)
 /* Mask of the above bits.  These need to be transferred from op_pmflags to
  * re->extflags during compilation */
 #define RXf_PMf_COMPILETIME    (RXf_PMf_MULTILINE|RXf_PMf_SINGLELINE|RXf_PMf_FOLD|RXf_PMf_EXTENDED|RXf_PMf_KEEPCOPY|RXf_PMf_CHARSET)
-#define RXf_PMf_FLAGCOPYMASK   (RXf_PMf_MULTILINE|RXf_PMf_SINGLELINE|RXf_PMf_FOLD|RXf_PMf_EXTENDED|RXf_PMf_KEEPCOPY|RXf_PMf_CHARSET|RXf_PMf_SPLIT)
+#define RXf_PMf_FLAGCOPYMASK   (RXf_PMf_MULTILINE|RXf_PMf_SINGLELINE|RXf_PMf_FOLD|RXf_PMf_EXTENDED|RXf_PMf_KEEPCOPY|RXf_PMf_CHARSET|RXf_PMf_SPLIT|RXf_PMf_NOCAPTURE)
 
 #if RXf_PMf_COMPILETIME > 255
 #  error RXf_PMf_COMPILETIME wont fit in U8 flags field of eval node
@@ -110,8 +111,9 @@ get_regex_charset(const U32 flags)
 #define PMf_KEEPCOPY     1<<4
 #define PMf_CHARSET      7<<5
 #define PMf_SPLIT        1<<8
+#define PMf_NOCAPTURE    1<<24
 
-#if PMf_MULTILINE != RXf_PMf_MULTILINE || PMf_SINGLELINE != RXf_PMf_SINGLELINE || PMf_FOLD != RXf_PMf_FOLD || PMf_EXTENDED != RXf_PMf_EXTENDED || PMf_KEEPCOPY != RXf_PMf_KEEPCOPY || PMf_SPLIT != RXf_PMf_SPLIT || PMf_CHARSET != RXf_PMf_CHARSET
+#if PMf_MULTILINE != RXf_PMf_MULTILINE || PMf_SINGLELINE != RXf_PMf_SINGLELINE || PMf_FOLD != RXf_PMf_FOLD || PMf_EXTENDED != RXf_PMf_EXTENDED || PMf_KEEPCOPY != RXf_PMf_KEEPCOPY || PMf_SPLIT != RXf_PMf_SPLIT || PMf_CHARSET != RXf_PMf_CHARSET || PMf_KEEPCOPY != RXf_PMf_KEEPCOPY
 #   error RXf_PMf defines are wrong
 #endif
 

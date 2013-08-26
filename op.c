@@ -4608,7 +4608,7 @@ Perl_pmruntime(pTHX_ OP *o, OP *expr, bool isreg, I32 floor)
     assert(floor==0 || (pm->op_pmflags & PMf_HAS_CV));
 
     if (is_compiletime) {
-	U32 rx_flags = pm->op_pmflags & RXf_PMf_COMPILETIME;
+	U32 rx_flags = pm->op_pmflags & RXf_PMf_FLAGCOPYMASK;
 	regexp_engine const *eng = current_re_engine();
 
         if (o->op_flags & OPf_SPECIAL)

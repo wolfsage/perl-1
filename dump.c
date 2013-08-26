@@ -1447,6 +1447,7 @@ const struct flag_to_name regexp_flags_names[] = {
     {RXf_PMf_FOLD,        "PMf_FOLD,"},
     {RXf_PMf_EXTENDED,    "PMf_EXTENDED,"},
     {RXf_PMf_KEEPCOPY,    "PMf_KEEPCOPY,"},
+    {RXf_PMf_NOCAPTURE,   "PMf_NOCAPTURE,"},
     {RXf_ANCH_BOL,        "ANCH_BOL,"},
     {RXf_ANCH_MBOL,       "ANCH_MBOL,"},
     {RXf_ANCH_SBOL,       "ANCH_SBOL,"},

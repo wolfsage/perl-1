@@ -5932,7 +5932,7 @@ Perl_re_op_compile(pTHX_ SV ** const patternp, int pat_count,
                     (((r->extflags & RXf_PMf_STD_PMMOD) != RXf_PMf_STD_PMMOD)
                     || ! has_charset);
 	bool has_runon = ((RExC_seen & REG_SEEN_RUN_ON_COMMENT)==REG_SEEN_RUN_ON_COMMENT);
-	U16 reganch = (U16)((r->extflags & RXf_PMf_STD_PMMOD)
+	U32 reganch = (U32)((r->extflags & RXf_PMf_STD_PMMOD)
 			    >> RXf_PMf_STD_PMMOD_SHIFT);
 	const char *fptr = STD_PAT_MODS;        /*"msix"*/
 	char *p;
@@ -8470,7 +8470,7 @@ S_parse_lparen_question_flags(pTHX_ struct RExC_state_t *pRExC_state)
            and must be globally applied -- japhy */
         switch (*RExC_parse) {
 
-            /* Code for the imsx flags */
+            /* Code for the imsxn flags */
             CASE_STD_PMMOD_FLAGS_PARSE_SET(flagsp);
 
             case LOCALE_PAT_MOD:
@@ -9281,7 +9281,7 @@ S_reg(pTHX_ RExC_state_t *pRExC_state, I32 paren, I32 *flagp,U32 depth)
                 goto parse_rest;
             } /* end switch */
 	}
-	else {                  /* (...) */
+	else if (!(RExC_flags & RXf_PMf_NOCAPTURE)) {   /* (...) */
 	  capturing_parens:
 	    parno = RExC_npar;
 	    RExC_npar++;
@@ -9302,6 +9302,8 @@ S_reg(pTHX_ RExC_state_t *pRExC_state, I32 paren, I32 *flagp,U32 depth)
             Set_Node_Length(ret, 1); /* MJD */
             Set_Node_Offset(ret, RExC_parse); /* MJD */
 	    is_open = 1;
+	} else {
+	    ret = NULL;
 	}
     }
     else                        /* ! paren */
