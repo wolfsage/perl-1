@@ -98,7 +98,11 @@ PP(pp_padav)
 	    }
 	}
 	else {
-	    Copy(AvARRAY((const AV *)TARG), SP+1, maxarg, SV*);
+	    PADOFFSET i;
+	    for (i=0; i < (PADOFFSET)maxarg; i++) {
+		SV * const sv = AvARRAY((const AV *)TARG)[i];
+		SP[i+1] = sv ? sv : &PL_sv_undef;
+	    }
 	}
 	SP += maxarg;
     }
@@ -442,7 +446,7 @@ PP(pp_pos)
 	    if (mg && mg->mg_len != -1) {
 		dTARGET;
 		STRLEN i = mg->mg_len;
-		if (DO_UTF8(sv))
+		if (mg->mg_flags & MGf_BYTES && DO_UTF8(sv))
 		    i = sv_pos_b2u_flags(sv, i, SV_GMAGIC|SV_CONST_RETURN);
 		PUSHu(i);
 		RETURN;

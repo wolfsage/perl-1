@@ -7567,21 +7567,12 @@ Perl_yylex(pTHX)
 	case KEY___END__: {
 	    GV *gv;
 	    if (PL_rsfp && (!PL_in_eval || PL_tokenbuf[2] == 'D')) {
-		const char *pname = "main";
-		STRLEN plen = 4;
-		U32 putf8 = 0;
-		if (PL_tokenbuf[2] == 'D')
-		{
-		    HV * const stash =
-			PL_curstash ? PL_curstash : PL_defstash;
-		    pname = HvNAME_get(stash);
-		    plen  = HvNAMELEN (stash);
-		    if(HvNAMEUTF8(stash)) putf8 = SVf_UTF8;
-		}
-		gv = gv_fetchpvn_flags(
-			Perl_form(aTHX_ "%*s::DATA", (int)plen, pname),
-			plen+6, GV_ADD|putf8, SVt_PVIO
-		);
+		HV * const stash = PL_tokenbuf[2] == 'D' && PL_curstash
+					? PL_curstash
+					: PL_defstash;
+		gv = (GV *)*hv_fetchs(stash, "DATA", 1);
+		if (!isGV(gv))
+		    gv_init(gv,stash,"DATA",4,0);
 		GvMULTI_on(gv);
 		if (!GvIO(gv))
 		    GvIOp(gv) = newIO();
@@ -10365,11 +10356,15 @@ intro_sym:
 
 
 /* scan_str
-   takes: start position in buffer
-	  keep_quoted preserve \ on the embedded delimiter(s)
-	  keep_delims preserve the delimiters around the string
-	  re_reparse  compiling a run-time /(?{})/:
-			collapse // to /,  and skip encoding src
+   takes:
+	start			position in buffer
+	keep_quoted		preserve \ on the embedded delimiter(s)
+	keep_delims		preserve the delimiters around the string
+	re_reparse		compiling a run-time /(?{})/:
+				   collapse // to /,  and skip encoding src
+	deprecate_escaped_meta	issue a deprecation warning for cer-
+				tain paired metacharacters that appear
+				escaped within it
    returns: position to continue reading from buffer
    side-effects: multi_start, multi_close, lex_repl or lex_stuff, and
    	updates the read buffer.
@@ -10411,9 +10406,7 @@ intro_sym:
 
 STATIC char *
 S_scan_str(pTHX_ char *start, int keep_quoted, int keep_delims, int re_reparse,
-        bool deprecate_escaped_meta /* Should we issue a deprecation warning
-                                       for certain paired metacharacters that
-                                       appear escaped within it */
+		 bool deprecate_escaped_meta
     )
 {
     dVAR;

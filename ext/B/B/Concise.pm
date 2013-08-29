@@ -14,7 +14,7 @@ use warnings; # uses #3 and #4, since warnings uses Carp
 
 use Exporter (); # use #5
 
-our $VERSION   = "0.98";
+our $VERSION   = "0.99";
 our @ISA       = qw(Exporter);
 our @EXPORT_OK = qw( set_style set_style_standard add_callback
 		     concise_subref concise_cv concise_main
@@ -704,7 +704,14 @@ sub concise_sv {
     $hr->{svaddr} = sprintf("%#x", $$sv);
     if ($hr->{svclass} eq "GV" && $sv->isGV_with_GP()) {
 	my $gv = $sv;
-	my $stash = $gv->STASH->NAME; if ($stash eq "main") {
+	my $stash = $gv->STASH;
+	if (class($stash) eq "SPECIAL") {
+	    $stash = "<none>";
+	}
+	else {
+	    $stash = $stash->NAME;
+	}
+	if ($stash eq "main") {
 	    $stash = "";
 	} else {
 	    $stash = $stash . "::";

@@ -4939,6 +4939,7 @@ t/base/while.t			See if while work
 t/benchmark/rt26188-speed-up-keys-on-empty-hash.t	Benchmark if keys on empty hashes is fast enough
 t/bigmem/pos.t			Check that pos() handles large offsets
 t/bigmem/read.t			Check read() handles large offsets
+t/bigmem/regexp.t		Test regular expressions with large strings
 t/bigmem/vec.t			Check vec() handles large offsets
 t/cmd/elsif.t			See if else-if works
 t/cmd/for.t			See if for loops work
@@ -5302,6 +5303,7 @@ t/op/require_37033.t		See if require always closes rsfp
 t/op/require_errors.t		See if errors from require are reported correctly
 t/op/reset.t			See if reset operator works
 t/op/reverse.t			See if reverse operator works
+t/op/rt119311.t			Test bug #119311 (die/DESTROY/recursion)
 t/op/runlevel.t			See if die() works from perl_call_*()
 t/op/select.t			See if 0- and 1-argument select works
 t/op/setpgrpstack.t		See if setpgrp works
@@ -5513,6 +5515,7 @@ t/uni/variables.t		See that the rules for variable names work
 t/uni/write.t			See if Unicode formats work
 t/win32/fs.t			Test Win32 link for compatibility
 t/win32/runenv.t		Test if Win* perl honors its env variables
+t/win32/signal.t		Test Win32 signal emulation
 t/win32/system.t		See if system works in Win*
 t/win32/system_tests		Test runner for system.t
 t/x2p/find2perl.t		Test find2perl

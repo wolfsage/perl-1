@@ -230,6 +230,7 @@
 #define instr			Perl_instr
 #define is_ascii_string		Perl_is_ascii_string
 #define is_lvalue_sub()		Perl_is_lvalue_sub(aTHX)
+#define is_safe_syscall(a,b,c)	S_is_safe_syscall(aTHX_ a,b,c)
 #define is_uni_alnum(a)		Perl_is_uni_alnum(aTHX_ a)
 #define is_uni_alnum_lc(a)	Perl_is_uni_alnum_lc(aTHX_ a)
 #define is_uni_alnumc(a)	Perl_is_uni_alnumc(aTHX_ a)
@@ -894,6 +895,9 @@
 #  endif
 #  if defined(PERL_ANY_COW)
 #define sv_setsv_cow(a,b)	Perl_sv_setsv_cow(aTHX_ a,b)
+#  endif
+#  if defined(PERL_CORE) || defined (PERL_EXT)
+#define sv_or_pv_pos_u2b(a,b,c,d)	S_sv_or_pv_pos_u2b(aTHX_ a,b,c,d)
 #  endif
 #  if defined(PERL_IN_REGCOMP_C)
 #define _append_range_to_invlist(a,b,c)	S__append_range_to_invlist(aTHX_ a,b,c)

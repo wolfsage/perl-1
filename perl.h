@@ -1168,12 +1168,6 @@ EXTERN_C char *crypt(const char *, const char *);
 #   define SS_IVCHAN  		SS$_IVCHAN
 #   define SS_NORMAL  		SS$_NORMAL
 #else
-#   define SETERRNO(errcode,vmserrcode) (errno = (errcode))
-#   define dSAVEDERRNO    int saved_errno
-#   define dSAVE_ERRNO    int saved_errno = errno
-#   define SAVE_ERRNO     (saved_errno = errno)
-#   define RESTORE_ERRNO  (errno = saved_errno)
-
 #   define LIB_INVARG 		0
 #   define RMS_DIR    		0
 #   define RMS_FAC    		0
@@ -1186,6 +1180,31 @@ EXTERN_C char *crypt(const char *, const char *);
 #   define SS_DEVOFFLINE	0
 #   define SS_IVCHAN  		0
 #   define SS_NORMAL  		0
+#endif
+
+#ifdef WIN32
+#   define dSAVEDERRNO  int saved_errno; DWORD saved_win32_errno
+#   define dSAVE_ERRNO  int saved_errno = errno; DWORD saved_win32_errno = GetLastError()
+#   define SAVE_ERRNO   ( saved_errno = errno, saved_win32_errno = GetLastError() )
+#   define RESTORE_ERRNO ( errno = saved_errno, SetLastError(saved_win32_errno) )
+#endif
+
+#ifdef OS2
+#   define dSAVEDERRNO  int saved_errno; unsigned long saved_os2_errno
+#   define dSAVE_ERRNO  int saved_errno = errno; unsigned long saved_os2_errno = Perl_rc
+#   define SAVE_ERRNO   ( saved_errno = errno, saved_os2_errno = Perl_rc )
+#   define RESTORE_ERRNO ( errno = saved_errno, Perl_rc = saved_os2_errno )
+#endif
+
+#ifndef SETERRNO
+#   define SETERRNO(errcode,vmserrcode) (errno = (errcode))
+#endif
+
+#ifndef dSAVEDERRNO
+#   define dSAVEDERRNO    int saved_errno
+#   define dSAVE_ERRNO    int saved_errno = errno
+#   define SAVE_ERRNO     (saved_errno = errno)
+#   define RESTORE_ERRNO  (errno = saved_errno)
 #endif
 
 #define ERRSV GvSVn(PL_errgv)
@@ -5670,6 +5689,12 @@ extern void moncontrol(int);
 #else
 #  define do_aexec(really, mark,sp)	do_aexec5(really, mark, sp, 0, 0)
 #endif
+
+/* check embedded \0 characters in pathnames passed to syscalls,
+   but allow one ending \0 */
+#define IS_SAFE_SYSCALL(pv, what, op_name) (S_is_safe_syscall(aTHX_ (pv), (what), (op_name)))
+
+#define IS_SAFE_PATHNAME(pv, op_name) IS_SAFE_SYSCALL((pv), "pathname", (op_name))
 
 #if defined(OEMVS)
 #define NO_ENV_ARRAY_IN_MAIN

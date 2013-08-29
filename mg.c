@@ -661,21 +661,21 @@ Perl_magic_regdatum_get(pTHX_ SV *sv, MAGIC *mg)
 	const REGEXP * const rx = PM_GETRE(PL_curpm);
 	if (rx) {
 	    const I32 paren = mg->mg_len;
-	    I32 s;
-	    I32 t;
+	    SSize_t s;
+	    SSize_t t;
 	    if (paren < 0)
 		return 0;
 	    if (paren <= (I32)RX_NPARENS(rx) &&
 		(s = RX_OFFS(rx)[paren].start) != -1 &&
 		(t = RX_OFFS(rx)[paren].end) != -1)
 		{
-		    I32 i;
+		    SSize_t i;
 		    if (mg->mg_obj)		/* @+ */
 			i = t;
 		    else			/* @- */
 			i = s;
 
-		    if (i > 0 && RX_MATCH_UTF8(rx)) {
+		    if (RX_MATCH_UTF8(rx)) {
 			const char * const b = RX_SUBBEG(rx);
 			if (b)
 			    i = RX_SUBCOFFSET(rx) +
@@ -683,10 +683,12 @@ Perl_magic_regdatum_get(pTHX_ SV *sv, MAGIC *mg)
                                         (U8*)(b-RX_SUBOFFSET(rx)+i));
 		    }
 
-		    sv_setiv(sv, i);
+		    sv_setuv(sv, i);
+		    return 0;
 		}
 	}
     }
+    sv_setsv(sv, NULL);
     return 0;
 }
 
@@ -2098,12 +2100,12 @@ Perl_magic_getpos(pTHX_ SV *sv, MAGIC *mg)
 
     if (found && found->mg_len != -1) {
 	    STRLEN i = found->mg_len;
-	    if (DO_UTF8(lsv))
+	    if (found->mg_flags & MGf_BYTES && DO_UTF8(lsv))
 		i = sv_pos_b2u_flags(lsv, i, SV_GMAGIC|SV_CONST_RETURN);
 	    sv_setuv(sv, i);
 	    return 0;
     }
-    SvOK_off(sv);
+    sv_setsv(sv,NULL);
     return 0;
 }
 
@@ -2149,12 +2151,8 @@ Perl_magic_setpos(pTHX_ SV *sv, MAGIC *mg)
     else if (pos > (SSize_t)len)
 	pos = len;
 
-    if (ulen) {
-	pos = sv_or_pv_pos_u2b(lsv, s, pos, 0);
-    }
-
     found->mg_len = pos;
-    found->mg_flags &= ~MGf_MINMATCH;
+    found->mg_flags &= ~(MGf_MINMATCH|MGf_BYTES);
 
     return 0;
 }
@@ -2383,7 +2381,7 @@ Perl_vivify_defelem(pTHX_ SV *sv)
 	    LvTARG(sv) = NULL;	/* array can't be extended */
 	else {
 	    SV* const * const svp = av_fetch(av, LvSTARGOFF(sv), TRUE);
-	    if (!svp || (value = *svp) == &PL_sv_undef)
+	    if (!svp || !(value = *svp))
 		Perl_croak(aTHX_ PL_no_aelem, LvSTARGOFF(sv));
 	}
     }

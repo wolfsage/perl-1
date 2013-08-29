@@ -1326,7 +1326,7 @@ PP(pp_match)
     PMOP *dynpm = pm;
     const char *s;
     const char *strend;
-    I32 curpos = 0; /* initial pos() or current $+[0] */
+    SSize_t curpos = 0; /* initial pos() or current $+[0] */
     I32 global;
     U8 r_flags = 0;
     const char *truebase;			/* Start of string  */
@@ -1383,8 +1383,10 @@ PP(pp_match)
 	rx = PM_GETRE(pm);
     }
 
-    if (RX_MINLEN(rx) > (I32)len) {
-        DEBUG_r(PerlIO_printf(Perl_debug_log, "String shorter than min possible regex match\n"));
+    if (RX_MINLEN(rx) >= 0 && (STRLEN)RX_MINLEN(rx) > len) {
+        DEBUG_r(PerlIO_printf(Perl_debug_log, "String shorter than min possible regex match (%"
+                                              UVuf" < %"IVdf")\n",
+                                              (UV)len, (IV)RX_MINLEN(rx)));
 	goto nope;
     }
 
@@ -1392,7 +1394,7 @@ PP(pp_match)
     if (global) {
         mg = mg_find_mglob(TARG);
         if (mg && mg->mg_len >= 0) {
-            curpos = mg->mg_len;
+            curpos = MgBYTEPOS(mg, TARG, truebase, len);
             /* last time pos() was set, it was zero-length match */
             if (mg->mg_flags & MGf_MINMATCH)
                 had_zerolen = 1;
@@ -1448,7 +1450,7 @@ PP(pp_match)
     if (global && (gimme != G_ARRAY || (dynpm->op_pmflags & PMf_CONTINUE))) {
         if (!mg)
             mg = sv_magicext_mglob(TARG);
-        mg->mg_len = RX_OFFS(rx)[0].end;
+        MgBYTEPOS_set(mg, TARG, truebase, RX_OFFS(rx)[0].end);
         if (RX_ZERO_LEN(rx))
             mg->mg_flags |= MGf_MINMATCH;
         else
@@ -1916,10 +1918,7 @@ PP(pp_iter)
                 SvREFCNT_inc_simple_void_NN(sv);
             }
         }
-        else
-            sv = &PL_sv_undef;
-
-        if (!av_is_stack && sv == &PL_sv_undef) {
+        else if (!av_is_stack) {
             SV *lv = newSV_type(SVt_PVLV);
             LvTYPE(lv) = 'y';
             sv_magic(lv, NULL, PERL_MAGIC_defelem, NULL, 0);
@@ -1928,6 +1927,8 @@ PP(pp_iter)
             LvTARGLEN(lv) = (STRLEN)UV_MAX;
             sv = lv;
         }
+        else
+            sv = &PL_sv_undef;
 
         oldsv = *itersvp;
         *itersvp = sv;
@@ -2508,8 +2509,8 @@ PP(pp_leavesub)
     PUTBACK;
 
     LEAVE;
-    cxstack_ix--;
     POPSUB(cx,sv);	/* Stack values are safe: release CV and @_ ... */
+    cxstack_ix--;
     PL_curpm = newpm;	/* ... and pop $1 et al */
 
     LEAVESUB(sv);

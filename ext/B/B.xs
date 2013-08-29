@@ -21,13 +21,18 @@ typedef FILE * InputStream;
 
 static const char* const svclassnames[] = {
     "B::NULL",
+#if PERL_VERSION < 19
+    "B::BIND",
+#endif
     "B::IV",
     "B::NV",
 #if PERL_VERSION <= 10
     "B::RV",
 #endif
     "B::PV",
+#if PERL_VERSION >= 19
     "B::INVLIST",
+#endif
     "B::PVIV",
     "B::PVNV",
     "B::PVMG",
@@ -1896,11 +1901,8 @@ const_sv(cv)
 void
 GV(cv)
 	B::CV cv
-    PREINIT:
-        GV *gv;
     CODE:
-	gv = CvGV(cv);
-	ST(0) = gv ? make_sv_object(aTHX_ (SV*)gv) : &PL_sv_undef;
+	ST(0) = make_sv_object(aTHX_ (SV*)CvGV(cv));
 
 #if PERL_VERSION > 17
 

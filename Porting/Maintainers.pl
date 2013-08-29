@@ -693,7 +693,7 @@ use File::Glob qw(:case);
 
     'ExtUtils::MakeMaker' => {
         'MAINTAINER'   => 'mschwern',
-        'DISTRIBUTION' => 'BINGOS/ExtUtils-MakeMaker-6.72.tar.gz',
+        'DISTRIBUTION' => 'BINGOS/ExtUtils-MakeMaker-6.74.tar.gz',
         'FILES'        => q[cpan/ExtUtils-MakeMaker],
         'EXCLUDED'     => [
             qr{^t/lib/Test/},
@@ -1196,6 +1196,7 @@ use File::Glob qw(:case);
         ],
         # Generated file, not part of the CPAN distro:
         'CUSTOMIZED' => ['lib/Module/Build/ConfigData.pm'],
+        'DEPRECATED' => '5.019000',
         'UPSTREAM'   => 'cpan',
     },
 
