@@ -595,7 +595,7 @@ use File::Glob qw(:case);
 
     'Encode' => {
         'MAINTAINER'   => 'dankogai',
-        'DISTRIBUTION' => 'DANKOGAI/Encode-2.52.tar.gz',
+        'DISTRIBUTION' => 'DANKOGAI/Encode-2.54.tar.gz',
         'FILES'        => q[cpan/Encode],
         'UPSTREAM'     => 'cpan',
     },
@@ -715,7 +715,7 @@ use File::Glob qw(:case);
 
     'ExtUtils::ParseXS' => {
         'MAINTAINER'   => 'smueller',
-        'DISTRIBUTION' => 'SMUELLER/ExtUtils-ParseXS-3.21.tar.gz',
+        'DISTRIBUTION' => 'SMUELLER/ExtUtils-ParseXS-3.22.tar.gz',
         'FILES'        => q[dist/ExtUtils-ParseXS],
         'UPSTREAM'     => 'blead',
     },
@@ -1216,7 +1216,7 @@ use File::Glob qw(:case);
 
     'Module::Load::Conditional' => {
         'MAINTAINER'   => 'kane',
-        'DISTRIBUTION' => 'BINGOS/Module-Load-Conditional-0.54.tar.gz',
+        'DISTRIBUTION' => 'BINGOS/Module-Load-Conditional-0.56.tar.gz',
         'FILES'        => q[cpan/Module-Load-Conditional],
         'UPSTREAM'     => 'cpan',
     },

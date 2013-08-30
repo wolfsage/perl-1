@@ -1041,8 +1041,8 @@ S_cl_or(const RExC_state_t *pRExC_state, struct regnode_charclass_class *cl, con
                     255, which means that the union with cl should just be
                     what cl has in it, so can ignore this flag
             ANYOF_NON_UTF8_LATIN1_ALL and inverted means if not utf8 and ord
-                    is 127-255 to match them, but then invert that, so the
-                    union with cl should just be what cl has in it, so can
+                    is (ASCII) 127-255 to match them, but then invert that, so
+                    the union with cl should just be what cl has in it, so can
                     ignore this flag
          */
     } else {    /* 'or_with' is not inverted */
@@ -1443,7 +1443,7 @@ and would end up looking like:
    8: EXACT <baz>(10)
   10: END(0)
 
-    d = uvuni_to_utf8_flags(d, uv, 0);
+    d = uvchr_to_utf8_flags(d, uv, 0);
 
 is the recommended Unicode-aware way of saying
 
@@ -1455,7 +1455,7 @@ is the recommended Unicode-aware way of saying
 	if (UTF) {							   \
             SV *zlopp = newSV(7); /* XXX: optimize me */                   \
 	    unsigned char *flrbbbbb = (unsigned char *) SvPVX(zlopp);	   \
-            unsigned const char *const kapow = uvuni_to_utf8(flrbbbbb, val); \
+            unsigned const char *const kapow = uvchr_to_utf8(flrbbbbb, val); \
 	    SvCUR_set(zlopp, kapow - flrbbbbb);				   \
 	    SvPOK_on(zlopp);						   \
 	    SvUTF8_on(zlopp);						   \
@@ -1466,31 +1466,28 @@ is the recommended Unicode-aware way of saying
 	}								   \
         } STMT_END
 
-#define TRIE_READ_CHAR STMT_START {                                                     \
-    wordlen++;                                                                          \
-    if ( UTF ) {                                                                        \
-        /* if it is UTF then it is either already folded, or does not need folding */   \
-        uvc = utf8n_to_uvuni( (const U8*) uc, UTF8_MAXLEN, &len, uniflags);             \
-    }                                                                                   \
-    else if (folder == PL_fold_latin1) {                                                \
-        /* if we use this folder we have to obey unicode rules on latin-1 data */       \
-        if ( foldlen > 0 ) {                                                            \
-           uvc = utf8n_to_uvuni( (const U8*) scan, UTF8_MAXLEN, &len, uniflags );       \
-           foldlen -= len;                                                              \
-           scan += len;                                                                 \
-           len = 0;                                                                     \
-        } else {                                                                        \
-            len = 1;                                                                    \
-            uvc = _to_fold_latin1( (U8) *uc, foldbuf, &foldlen, FOLD_FLAGS_FULL);       \
-            skiplen = UNISKIP(uvc);                                                     \
-            foldlen -= skiplen;                                                         \
-            scan = foldbuf + skiplen;                                                   \
-        }                                                                               \
-    } else {                                                                            \
-        /* raw data, will be folded later if needed */                                  \
-        uvc = (U32)*uc;                                                                 \
-        len = 1;                                                                        \
-    }                                                                                   \
+/* This gets the next character from the input, folding it if not already
+ * folded. */
+#define TRIE_READ_CHAR STMT_START {                                           \
+    wordlen++;                                                                \
+    if ( UTF ) {                                                              \
+        /* if it is UTF then it is either already folded, or does not need    \
+         * folding */                                                         \
+        uvc = utf8n_to_uvuni( (const U8*) uc, UTF8_MAXLEN, &len, uniflags);   \
+    }                                                                         \
+    else if (folder == PL_fold_latin1) {                                      \
+        /* This folder implies Unicode rules, which in the range expressible  \
+         *  by not UTF is the lower case, with the two exceptions, one of     \
+         *  which should have been taken care of before calling this */       \
+        assert(*uc != LATIN_SMALL_LETTER_SHARP_S);                            \
+        uvc = toLOWER_L1(*uc);                                                \
+        if (UNLIKELY(uvc == MICRO_SIGN)) uvc = GREEK_SMALL_LETTER_MU;         \
+        len = 1;                                                              \
+    } else {                                                                  \
+        /* raw data, will be folded later if needed */                        \
+        uvc = (U32)*uc;                                                       \
+        len = 1;                                                              \
+    }                                                                         \
 } STMT_END
 
 
@@ -1610,7 +1607,6 @@ S_make_trie(pTHX_ RExC_state_t *pRExC_state, regnode *startbranch, regnode *firs
         case EXACT: break;
 	case EXACTFA:
         case EXACTFU_SS:
-        case EXACTFU_TRICKYFOLD:
 	case EXACTFU: folder = PL_fold_latin1; break;
 	case EXACTF:  folder = PL_fold; break;
 	case EXACTFL: folder = PL_fold_locale; break;
@@ -1682,11 +1678,9 @@ S_make_trie(pTHX_ RExC_state_t *pRExC_state, regnode *startbranch, regnode *firs
         const U8 *uc = (U8*)STRING( noper );
         const U8 *e  = uc + STR_LEN( noper );
         STRLEN foldlen = 0;
-        U8 foldbuf[ UTF8_MAXBYTES_CASE + 1 ];
-        STRLEN skiplen = 0;
-        const U8 *scan = (U8*)NULL;
         U32 wordlen      = 0;         /* required init */
-        STRLEN chars = 0;
+        STRLEN minbytes = 0;
+        STRLEN maxbytes = 0;
         bool set_bit = trie->bitmap ? 1 : 0; /*store the first char in the bitmap?*/
 
         if (OP(noper) == NOTHING) {
@@ -1707,13 +1701,61 @@ S_make_trie(pTHX_ RExC_state_t *pRExC_state, regnode *startbranch, regnode *firs
                                           regardless of encoding */
             if (OP( noper ) == EXACTFU_SS) {
                 /* false positives are ok, so just set this */
-                TRIE_BITMAP_SET(trie,0xDF);
+                TRIE_BITMAP_SET(trie, LATIN_SMALL_LETTER_SHARP_S);
             }
         }
         for ( ; uc < e ; uc += len ) {
             TRIE_CHARCOUNT(trie)++;
             TRIE_READ_CHAR;
-            chars++;
+
+            /* Acummulate to the current values, the range in the number of
+             * bytes that this character could match.  The max is presumed to
+             * be the same as the folded input (which TRIE_READ_CHAR returns),
+             * except that when this is not in UTF-8, it could be matched
+             * against a string which is UTF-8, and the variant characters
+             * could be 2 bytes instead of the 1 here.  Likewise, for the
+             * minimum number of bytes when not folded.  When folding, the min
+             * is assumed to be 1 byte could fold to match the single character
+             * here, or in the case of a multi-char fold, 1 byte can fold to
+             * the whole sequence.  'foldlen' is used to denote whether we are
+             * in such a sequence, skipping the min setting if so.  XXX TODO
+             * Use the exact list of what folds to each character, from
+             * PL_utf8_foldclosures */
+            if (UTF) {
+                maxbytes += UTF8SKIP(uc);
+                if (! folder) {
+                    /* A non-UTF-8 string could be 1 byte to match our 2 */
+                    minbytes += (UTF8_IS_DOWNGRADEABLE_START(*uc))
+                                ? 1
+                                : UTF8SKIP(uc);
+                }
+                else {
+                    if (foldlen) {
+                        foldlen -= UTF8SKIP(uc);
+                    }
+                    else {
+                        foldlen = is_MULTI_CHAR_FOLD_utf8_safe(uc, e);
+                        minbytes++;
+                    }
+                }
+            }
+            else {
+                maxbytes += (UNI_IS_INVARIANT(*uc))
+                             ? 1
+                             : 2;
+                if (! folder) {
+                    minbytes++;
+                }
+                else {
+                    if (foldlen) {
+                        foldlen--;
+                    }
+                    else {
+                        foldlen = is_MULTI_CHAR_FOLD_latin1_safe(uc, e);
+                        minbytes++;
+                    }
+                }
+            }
             if ( uvc < 256 ) {
                 if ( folder ) {
                     U8 folded= folder[ (U8) uvc ];
@@ -1737,7 +1779,7 @@ S_make_trie(pTHX_ RExC_state_t *pRExC_state, regnode *startbranch, regnode *firs
 		    if ( !UTF ) {
 			/* store first byte of utf8 representation of
 			   variant codepoints */
-			if (! UNI_IS_INVARIANT(uvc)) {
+			if (! NATIVE_IS_INVARIANT(uvc)) {
 			    TRIE_BITMAP_SET(trie, UTF8_TWO_BYTE_HI(uvc));
 			}
 		    }
@@ -1760,25 +1802,13 @@ S_make_trie(pTHX_ RExC_state_t *pRExC_state, regnode *startbranch, regnode *firs
             }
         }
         if( cur == first ) {
-            trie->minlen = chars;
-            trie->maxlen = chars;
-        } else if (chars < trie->minlen) {
-            trie->minlen = chars;
-        } else if (chars > trie->maxlen) {
-            trie->maxlen = chars;
+            trie->minlen = minbytes;
+            trie->maxlen = maxbytes;
+        } else if (minbytes < trie->minlen) {
+            trie->minlen = minbytes;
+        } else if (maxbytes > trie->maxlen) {
+            trie->maxlen = maxbytes;
         }
-        if (OP( noper ) == EXACTFU_SS) {
-            /* XXX: workaround - 'ss' could match "\x{DF}" so minlen could be 1 and not 2*/
-	    if (trie->minlen > 1)
-                trie->minlen= 1;
-        }
-	if (OP( noper ) == EXACTFU_TRICKYFOLD) {
-	    /* XXX: workround - things like "\x{1FBE}\x{0308}\x{0301}" can match "\x{0390}" 
-	     *		      - We assume that any such sequence might match a 2 byte string */
-            if (trie->minlen > 2 )
-                trie->minlen= 2;
-        }
-
     } /* end first pass */
     DEBUG_TRIE_COMPILE_r(
         PerlIO_printf( Perl_debug_log, "%*sTRIE(%s): W:%d C:%d Uq:%d Min:%d Max:%d\n",
@@ -1845,11 +1875,7 @@ S_make_trie(pTHX_ RExC_state_t *pRExC_state, regnode *startbranch, regnode *firs
             const U8 *e      = uc + STR_LEN( noper );
 	    U32 state        = 1;         /* required init */
 	    U16 charid       = 0;         /* sanity init */
-	    U8 *scan         = (U8*)NULL; /* sanity init */
-	    STRLEN foldlen   = 0;         /* required init */
             U32 wordlen      = 0;         /* required init */
-	    U8 foldbuf[ UTF8_MAXBYTES_CASE + 1 ];
-            STRLEN skiplen   = 0;
 
             if (OP(noper) == NOTHING) {
                 regnode *noper_next= regnext(noper);
@@ -2055,12 +2081,8 @@ S_make_trie(pTHX_ RExC_state_t *pRExC_state, regnode *startbranch, regnode *firs
 
             U16 charid       = 0;         /* sanity init */
             U32 accept_state = 0;         /* sanity init */
-            U8 *scan         = (U8*)NULL; /* sanity init */
 
-            STRLEN foldlen   = 0;         /* required init */
             U32 wordlen      = 0;         /* required init */
-            STRLEN skiplen   = 0;
-            U8 foldbuf[ UTF8_MAXBYTES_CASE + 1 ];
 
             if (OP(noper) == NOTHING) {
                 regnode *noper_next= regnext(noper);
@@ -2680,8 +2702,8 @@ S_make_trie_failtable(pTHX_ RExC_state_t *pRExC_state, regnode *source,  regnode
  * that is "sss".
  *
  * It turns out that there are problems with all multi-character folds, and not
- * just these three.  Now the code is general, for all such cases, but the
- * three still have some special handling.  The approach taken is:
+ * just these three.  Now the code is general, for all such cases.  The
+ * approach taken is:
  * 1)   This routine examines each EXACTFish node that could contain multi-
  *      character fold sequences.  It returns in *min_subtract how much to
  *      subtract from the the actual length of the string to get a real minimum
@@ -2689,10 +2711,7 @@ S_make_trie_failtable(pTHX_ RExC_state_t *pRExC_state, regnode *source,  regnode
  *      used by the caller to adjust the min length of the match, and the delta
  *      between min and max, so that the optimizer doesn't reject these
  *      possibilities based on size constraints.
- * 2)   Certain of these sequences require special handling by the trie code,
- *      so, if found, this code changes the joined node type to special ops:
- *      EXACTFU_TRICKYFOLD and EXACTFU_SS.
- * 3)   For the sequence involving the Sharp s (\xDF), the node type EXACTFU_SS
+ * 2)   For the sequence involving the Sharp s (\xDF), the node type EXACTFU_SS
  *      is used for an EXACTFU node that contains at least one "ss" sequence in
  *      it.  For non-UTF-8 patterns and strings, this is the only case where
  *      there is a possible fold length change.  That means that a regular
@@ -2711,7 +2730,7 @@ S_make_trie_failtable(pTHX_ RExC_state_t *pRExC_state, regnode *source,  regnode
  *      this file makes sure that in EXACTFU nodes, the sharp s gets folded to
  *      'ss', even if the pattern isn't UTF-8.  This avoids the issues
  *      described in the next item.
- * 4)   A problem remains for the sharp s in EXACTF and EXACTFA nodes when the
+ * 3)   A problem remains for the sharp s in EXACTF and EXACTFA nodes when the
  *      pattern isn't in UTF-8. (BTW, there cannot be an EXACTF node with a
  *      UTF-8 pattern.)  An assumption that the optimizer part of regexec.c
  *      (probably unwittingly, in Perl_regexec_flags()) makes is that a
@@ -2742,7 +2761,14 @@ S_make_trie_failtable(pTHX_ RExC_state_t *pRExC_state, regnode *source,  regnode
  *      but in a non-UTF8 pattern, folding it to that above-Latin1 string would
  *      require the pattern to be forced into UTF-8, the overhead of which we
  *      want to avoid.)
- */
+ *
+ *      Similarly, the code that generates tries doesn't currently handle
+ *      not-already-folded multi-char folds, and it looks like a pain to change
+ *      that.  Therefore, trie generation of EXACTFA nodes with the sharp s
+ *      doesn't work.  Instead, such an EXACTFA is turned into a new regnode,
+ *      EXACTFA_NO_TRIE, which the trie code knows not to handle.  Most people
+ *      using /iaa matching will be doing so almost entirely with ASCII
+ *      strings, so this should rarely be encountered in practice */
 
 #define JOIN_EXACT(scan,min_subtract,has_exactf_sharp_s, flags) \
     if (PL_regkind[OP(scan)] == EXACT) \
@@ -2863,38 +2889,16 @@ S_join_exact(pTHX_ RExC_state_t *pRExC_state, regnode *scan, UV *min_subtract, b
                 }
 
                 /* Nodes with 'ss' require special handling, except for EXACTFL
-                 * and EXACTFA for which there is no multi-char fold to this */
+                 * and EXACTFA-ish for which there is no multi-char fold to
+                 * this */
                 if (len == 2 && *s == 's' && *(s+1) == 's'
-                    && OP(scan) != EXACTFL && OP(scan) != EXACTFA)
+                    && OP(scan) != EXACTFL
+                    && OP(scan) != EXACTFA
+                    && OP(scan) != EXACTFA_NO_TRIE)
                 {
                     count = 2;
                     OP(scan) = EXACTFU_SS;
                     s += 2;
-                }
-                else if (len == 6   /* len is the same in both ASCII and EBCDIC
-                                       for these */
-                         && (memEQ(s, GREEK_SMALL_LETTER_IOTA_UTF8
-                                      COMBINING_DIAERESIS_UTF8
-                                      COMBINING_ACUTE_ACCENT_UTF8,
-                                   6)
-                             || memEQ(s, GREEK_SMALL_LETTER_UPSILON_UTF8
-                                         COMBINING_DIAERESIS_UTF8
-                                         COMBINING_ACUTE_ACCENT_UTF8,
-                                     6)))
-                {
-                    count = 3;
-
-                    /* These two folds require special handling by trie's, so
-                     * change the node type to indicate this.  If EXACTFA and
-                     * EXACTFL were ever to be handled by trie's, this would
-                     * have to be changed.  If this node has already been
-                     * changed to EXACTFU_SS in this loop, leave it as is.  (I
-                     * (khw) think it doesn't matter in regexec.c for UTF
-                     * patterns, but no need to change it */
-                    if (OP(scan) == EXACTFU) {
-                        OP(scan) = EXACTFU_TRICKYFOLD;
-                    }
-                    s += 6;
                 }
                 else { /* Here is a generic multi-char fold. */
                     const U8* multi_end  = s + len;
@@ -2908,7 +2912,10 @@ S_join_exact(pTHX_ RExC_state_t *pRExC_state, regnode *scan, UV *min_subtract, b
                      * test for them.  The code that generates the
                      * is_MULTI_foo() macros croaks should one actually get put
                      * into Unicode .) */
-                    if (OP(scan) != EXACTFL && OP(scan) != EXACTFA) {
+                    if (OP(scan) != EXACTFL
+                        && OP(scan) != EXACTFA
+                        && OP(scan) != EXACTFA_NO_TRIE)
+                    {
                         count = utf8_length(s, multi_end);
                         s = multi_end;
                     }
@@ -2937,9 +2944,12 @@ S_join_exact(pTHX_ RExC_state_t *pRExC_state, regnode *scan, UV *min_subtract, b
             /* Non-UTF-8 pattern, EXACTFA node.  There can't be a multi-char
              * fold to the ASCII range (and there are no existing ones in the
              * upper latin1 range).  But, as outlined in the comments preceding
-             * this function, we need to flag any occurrences of the sharp s */
+             * this function, we need to flag any occurrences of the sharp s.
+             * This character forbids trie formation (because of added
+             * complexity) */
 	    while (s < s_end) {
                 if (*s == LATIN_SMALL_LETTER_SHARP_S) {
+                    OP(scan) = EXACTFA_NO_TRIE;
                     *has_exactf_sharp_s = TRUE;
                     break;
                 }
@@ -3359,14 +3369,14 @@ S_study_chunk(pTHX_ RExC_state_t *pRExC_state, regnode **scanp,
                                 EXACT           | EXACT
                                 EXACTFU         | EXACTFU
                                 EXACTFU_SS      | EXACTFU
-                                EXACTFU_TRICKYFOLD | EXACTFU
-                                EXACTFA         | 0
+                                EXACTFA         | EXACTFA
 
 
                         */
 #define TRIE_TYPE(X) ( ( NOTHING == (X) ) ? NOTHING :   \
                        ( EXACT == (X) )   ? EXACT :        \
-                       ( EXACTFU == (X) || EXACTFU_SS == (X) || EXACTFU_TRICKYFOLD == (X) ) ? EXACTFU :        \
+                       ( EXACTFU == (X) || EXACTFU_SS == (X) ) ? EXACTFU :        \
+                       ( EXACTFA == (X) ) ? EXACTFA :        \
                        0 )
 
                         /* dont use tail as the end marker for this traverse */
@@ -3746,7 +3756,8 @@ S_study_chunk(pTHX_ RExC_state_t *pRExC_state, regnode **scanp,
                         /* All other (EXACTFL handled above) folds except under
                          * /iaa that include s, S, and sharp_s also may include
                          * the others */
-			if (OP(scan) != EXACTFA) {
+			if (OP(scan) != EXACTFA && OP(scan) != EXACTFA_NO_TRIE)
+                        {
 			    if (uc == 's' || uc == 'S') {
 				ANYOF_BITMAP_SET(data->start_class,
 					         LATIN_SMALL_LETTER_SHARP_S);
@@ -3783,7 +3794,9 @@ S_study_chunk(pTHX_ RExC_state_t *pRExC_state, regnode **scanp,
 
 			    /* All folds except under /iaa that include s, S,
 			     * and sharp_s also may include the others */
-			    if (OP(scan) != EXACTFA) {
+			    if (OP(scan) != EXACTFA
+                                && OP(scan) != EXACTFA_NO_TRIE)
+                            {
 				if (uc == 's' || uc == 'S') {
 				    ANYOF_BITMAP_SET(data->start_class,
 					           LATIN_SMALL_LETTER_SHARP_S);
@@ -4276,8 +4289,8 @@ PerlIO_printf(Perl_debug_log, "LHS=%"UVdf" RHS=%"UVdf"\n",
 			if (!(data->start_class->flags & ANYOF_LOCALE)) {
 			    ANYOF_CLASS_CLEAR(data->start_class, classnum_to_namedclass(classnum) + 1);
                             for (value = 0; value < loop_max; value++) {
-                                if (! _generic_isCC(UNI_TO_NATIVE(value), classnum)) {
-                                    ANYOF_BITMAP_CLEAR(data->start_class, UNI_TO_NATIVE(value));
+                                if (! _generic_isCC(LATIN1_TO_NATIVE(value), classnum)) {
+                                    ANYOF_BITMAP_CLEAR(data->start_class, LATIN1_TO_NATIVE(value));
                                 }
                             }
 			}
@@ -4292,8 +4305,8 @@ PerlIO_printf(Perl_debug_log, "LHS=%"UVdf" RHS=%"UVdf"\n",
 			 * in case it isn't a true locale-node.  This will
 			 * create false positives if it truly is locale */
                         for (value = 0; value < loop_max; value++) {
-                            if (_generic_isCC(UNI_TO_NATIVE(value), classnum)) {
-                                ANYOF_BITMAP_SET(data->start_class, UNI_TO_NATIVE(value));
+                            if (_generic_isCC(LATIN1_TO_NATIVE(value), classnum)) {
+                                ANYOF_BITMAP_SET(data->start_class, LATIN1_TO_NATIVE(value));
                             }
                         }
                         }
@@ -4310,8 +4323,8 @@ PerlIO_printf(Perl_debug_log, "LHS=%"UVdf" RHS=%"UVdf"\n",
 			if (!(data->start_class->flags & ANYOF_LOCALE)) {
 			    ANYOF_CLASS_CLEAR(data->start_class, classnum_to_namedclass(classnum));
                             for (value = 0; value < loop_max; value++) {
-                                if (_generic_isCC(UNI_TO_NATIVE(value), classnum)) {
-                                    ANYOF_BITMAP_CLEAR(data->start_class, UNI_TO_NATIVE(value));
+                                if (_generic_isCC(LATIN1_TO_NATIVE(value), classnum)) {
+                                    ANYOF_BITMAP_CLEAR(data->start_class, LATIN1_TO_NATIVE(value));
                                 }
                             }
 			}
@@ -4326,8 +4339,8 @@ PerlIO_printf(Perl_debug_log, "LHS=%"UVdf" RHS=%"UVdf"\n",
 			 * case it isn't a true locale-node.  This will create
 			 * false positives if it truly is locale */
                         for (value = 0; value < loop_max; value++) {
-                            if (! _generic_isCC(UNI_TO_NATIVE(value), classnum)) {
-                                ANYOF_BITMAP_SET(data->start_class, UNI_TO_NATIVE(value));
+                            if (! _generic_isCC(LATIN1_TO_NATIVE(value), classnum)) {
+                                ANYOF_BITMAP_SET(data->start_class, LATIN1_TO_NATIVE(value));
                             }
                         }
                         if (PL_regkind[OP(scan)] == NPOSIXD) {
@@ -4950,12 +4963,11 @@ S_pat_upgrade_to_utf8(pTHX_ RExC_state_t * const pRExC_state,
     Newx(dst, *plen_p * 2 + 1, U8);
 
     while (s < *plen_p) {
-        const UV uv = NATIVE_TO_ASCII(src[s]);
-        if (UNI_IS_INVARIANT(uv))
-            dst[d]   = (U8)UTF_TO_NATIVE(uv);
+        if (NATIVE_IS_INVARIANT(src[s]))
+            dst[d]   = src[s];
         else {
-            dst[d++] = (U8)UTF8_EIGHT_BIT_HI(uv);
-            dst[d]   = (U8)UTF8_EIGHT_BIT_LO(uv);
+            dst[d++] = UTF8_EIGHT_BIT_HI(src[s]);
+            dst[d]   = UTF8_EIGHT_BIT_LO(src[s]);
         }
         if (n < num_code_blocks) {
             if (!do_end && pRExC_state->code_blocks[n].start == s) {
@@ -10184,7 +10196,7 @@ S_alloc_maybe_populate_EXACT(pTHX_ RExC_state_t *pRExC_state, regnode *node, I32
     if (! len_passed_in) {
         if (UTF) {
             if (FOLD && (! LOC || code_point > 255)) {
-                _to_uni_fold_flags(NATIVE_TO_UNI(code_point),
+                _to_uni_fold_flags(code_point,
                                    character,
                                    &len,
                                    FOLD_FLAGS_FULL | ((LOC)
@@ -10918,7 +10930,7 @@ tryagain:
 			p++;
 			break;
 		    case 'a':
-			  ender = ASCII_TO_NATIVE('\007');
+			  ender = '\a';
 			p++;
 			break;
 		    case 'o':
@@ -10988,16 +11000,18 @@ tryagain:
                         goto loopdone;
                     case '1': case '2': case '3':case '4':
 		    case '5': case '6': case '7':
-                        /* When we parse backslash escapes there is ambiguity between
-                         * backreferences and octal escapes. Any escape from \1 - \9 is
-                         * a backreference, any multi-digit escape which does not start with
-                         * 0 and which when evaluated as decimal could refer to an already
-                         * parsed capture buffer is a backslash. Anything else is octal.
+                        /* When we parse backslash escapes there is ambiguity
+                         * between backreferences and octal escapes. Any escape
+                         * from \1 - \9 is a backreference, any multi-digit
+                         * escape which does not start with 0 and which when
+                         * evaluated as decimal could refer to an already
+                         * parsed capture buffer is a backslash. Anything else
+                         * is octal.
                          *
-                         * Note this implies that \118 could be interpreted as 118 OR as
-                         * "\11" . "8" depending on whether there were 118 capture buffers
-                         * defined already in the pattern.
-                         */
+                         * Note this implies that \118 could be interpreted as
+                         * 118 OR as "\11" . "8" depending on whether there
+                         * were 118 capture buffers defined already in the
+                         * pattern.  */
                         if ( !isDIGIT(p[1]) || atoi(p) <= RExC_npar )
                         {  /* Not to be treated as an octal constant, go
                                    find backref */
@@ -11112,8 +11126,7 @@ tryagain:
                         REGC((char)ender, s++);
                     }
                 }
-                else /* FOLD */
-                     if (! ( UTF
+                else /* FOLD */ if (! ( UTF
                         /* See comments for join_exact() as to why we fold this
                          * non-UTF at compile time */
                         || (node_type == EXACTFU
@@ -11145,7 +11158,7 @@ tryagain:
                      * utf8.  If we start to fold non-UTF patterns, be sure to
                      * update join_exact() */
                     if (LOC && ender < 256) {
-                        if (UNI_IS_INVARIANT(ender)) {
+                        if (NATIVE_IS_INVARIANT(ender)) {
                             *s = (U8) ender;
                             foldlen = 1;
                         } else {
@@ -11286,8 +11299,8 @@ tryagain:
                             /* No Latin1 characters participate in multi-char
                              * folds under /l */
                             if (LOC
-                                || ! IS_NON_FINAL_FOLD(TWO_BYTE_UTF8_TO_UNI(
-                                                                *s, *(s+1))))
+                                || ! IS_NON_FINAL_FOLD(TWO_BYTE_UTF8_TO_NATIVE(
+                                                                  *s, *(s+1))))
                             {
                                 break;
                             }
@@ -12579,7 +12592,7 @@ parseit:
 	    case 'f':	value = '\f';			break;
 	    case 'b':	value = '\b';			break;
 	    case 'e':	value = ASCII_TO_NATIVE('\033');break;
-	    case 'a':	value = ASCII_TO_NATIVE('\007');break;
+	    case 'a':	value = '\a';                   break;
 	    case 'o':
 		RExC_parse--;	/* function expects to be pointed at the 'o' */
 		{
@@ -13190,9 +13203,11 @@ parseit:
              * included.  literal_endpoint==2 means both ends of the range used
              * a literal character, not \x{foo} */
 	    if (literal_endpoint == 2
-                && (prevvalue >= 'a' && value <= 'z')
-                    || (prevvalue >= 'A' && value <= 'Z'))
+                && ((prevvalue >= 'a' && value <= 'z')
+                    || (prevvalue >= 'A' && value <= 'Z')))
             {
+                _invlist_intersection(this_range, PL_ASCII,
+                                      &this_range);
                 _invlist_intersection(this_range, PL_Posix_ptrs[_CC_ALPHA],
                                       &this_range);
             }
@@ -13489,7 +13504,7 @@ parseit:
                     /* If the folds haven't been read in, call a fold function
                      * to force that */
                     if (! PL_utf8_tofold) {
-                        U8 dummy[UTF8_MAXBYTES+1];
+                        U8 dummy[UTF8_MAXBYTES_CASE+1];
 
                         /* This string is just a short named one above \xff */
                         to_utf8_fold((U8*) HYPHEN_UTF8, dummy, NULL);
@@ -14440,10 +14455,10 @@ S_regtail_study(pTHX_ RExC_state_t *pRExC_state, regnode *p, const regnode *val,
             switch (OP(scan)) {
                 case EXACT:
                 case EXACTF:
+                case EXACTFA_NO_TRIE:
                 case EXACTFA:
                 case EXACTFU:
                 case EXACTFU_SS:
-                case EXACTFU_TRICKYFOLD:
                 case EXACTFL:
                         if( exact == PSEUDO )
                             exact= OP(scan);

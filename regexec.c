@@ -165,13 +165,13 @@ static const char* const non_utf8_target_but_utf8_required
 #define LOAD_UTF8_CHARCLASS_ALNUM() LOAD_UTF8_CHARCLASS_DEBUG_TEST(           \
                                         PL_utf8_swash_ptrs[_CC_WORDCHAR],     \
                                         swash_property_names[_CC_WORDCHAR],   \
-                                        GREEK_SMALL_LETTER_IOTA_UTF8)
+                                        LATIN_CAPITAL_LETTER_SHARP_S_UTF8);
 
 #define LOAD_UTF8_CHARCLASS_GCB()  /* Grapheme cluster boundaries */          \
     STMT_START {                                                              \
 	LOAD_UTF8_CHARCLASS_DEBUG_TEST(PL_utf8_X_regular_begin,               \
                                        "_X_regular_begin",                    \
-                                       GREEK_SMALL_LETTER_IOTA_UTF8);         \
+                                       LATIN_CAPITAL_LETTER_SHARP_S_UTF8);    \
 	LOAD_UTF8_CHARCLASS_DEBUG_TEST(PL_utf8_X_extend,                      \
                                        "_X_extend",                           \
                                        COMBINING_GRAVE_ACCENT_UTF8);          \
@@ -207,13 +207,13 @@ static const char* const non_utf8_target_but_utf8_required
 /* Currently these are only used when PL_regkind[OP(rn)] == EXACT so
    we don't need this definition. */
 #define IS_TEXT(rn)   ( OP(rn)==EXACT   || OP(rn)==REF   || OP(rn)==NREF   )
-#define IS_TEXTF(rn)  ( OP(rn)==EXACTFU || OP(rn)==EXACTFU_SS || OP(rn)==EXACTFU_TRICKYFOLD || OP(rn)==EXACTFA || OP(rn)==EXACTF || OP(rn)==REFF  || OP(rn)==NREFF )
+#define IS_TEXTF(rn)  ( OP(rn)==EXACTFU || OP(rn)==EXACTFU_SS || OP(rn)==EXACTFA || OP(rn)==EXACTFA_NO_TRIE || OP(rn)==EXACTF || OP(rn)==REFF  || OP(rn)==NREFF )
 #define IS_TEXTFL(rn) ( OP(rn)==EXACTFL || OP(rn)==REFFL || OP(rn)==NREFFL )
 
 #else
 /* ... so we use this as its faster. */
 #define IS_TEXT(rn)   ( OP(rn)==EXACT   )
-#define IS_TEXTFU(rn)  ( OP(rn)==EXACTFU || OP(rn)==EXACTFU_SS || OP(rn)==EXACTFU_TRICKYFOLD || OP(rn) == EXACTFA)
+#define IS_TEXTFU(rn)  ( OP(rn)==EXACTFU || OP(rn)==EXACTFU_SS || OP(rn) == EXACTFA || OP(rn) == EXACTFA_NO_TRIE)
 #define IS_TEXTF(rn)  ( OP(rn)==EXACTF  )
 #define IS_TEXTFL(rn) ( OP(rn)==EXACTFL )
 
@@ -484,7 +484,7 @@ S_isFOO_utf8_lc(pTHX_ const U8 classnum, const U8* character)
     }
     else if (UTF8_IS_DOWNGRADEABLE_START(*character)) {
         return isFOO_lc(classnum,
-                        TWO_BYTE_UTF8_TO_UNI(*character, *(character + 1)));
+                        TWO_BYTE_UTF8_TO_NATIVE(*character, *(character + 1)));
     }
 
     if (classnum < _FIRST_NON_SWASH_CC) {
@@ -1227,45 +1227,55 @@ Perl_re_intuit_start(pTHX_
 }
 
 #define DECL_TRIE_TYPE(scan) \
-    const enum { trie_plain, trie_utf8, trie_utf8_fold, trie_latin_utf8_fold } \
+    const enum { trie_plain, trie_utf8, trie_utf8_fold, trie_latin_utf8_fold, \
+                 trie_utf8_exactfa_fold, trie_latin_utf8_exactfa_fold } \
                     trie_type = ((scan->flags == EXACT) \
                               ? (utf8_target ? trie_utf8 : trie_plain) \
-                              : (utf8_target ? trie_utf8_fold : trie_latin_utf8_fold))
+                              : (scan->flags == EXACTFA) \
+                                ? (utf8_target ? trie_utf8_exactfa_fold : trie_latin_utf8_exactfa_fold) \
+                                : (utf8_target ? trie_utf8_fold : trie_latin_utf8_fold))
 
 #define REXEC_TRIE_READ_CHAR(trie_type, trie, widecharmap, uc, uscan, len, uvc, charid, foldlen, foldbuf, uniflags) \
 STMT_START {                               \
     STRLEN skiplen;                                                                 \
+    U8 flags = FOLD_FLAGS_FULL; \
     switch (trie_type) {                                                            \
+    case trie_utf8_exactfa_fold:                                                            \
+        flags |= FOLD_FLAGS_NOMIX_ASCII; \
+        /* FALL THROUGH */ \
     case trie_utf8_fold:                                                            \
         if ( foldlen>0 ) {                                                          \
-            uvc = utf8n_to_uvuni( (const U8*) uscan, UTF8_MAXLEN, &len, uniflags ); \
+            uvc = utf8n_to_uvchr( (const U8*) uscan, UTF8_MAXLEN, &len, uniflags ); \
             foldlen -= len;                                                         \
             uscan += len;                                                           \
             len=0;                                                                  \
         } else {                                                                    \
-            uvc = to_utf8_fold( (const U8*) uc, foldbuf, &foldlen );                \
+            uvc = _to_utf8_fold_flags( (const U8*) uc, foldbuf, &foldlen, flags, NULL);                \
             len = UTF8SKIP(uc);                                                     \
             skiplen = UNISKIP( uvc );                                               \
             foldlen -= skiplen;                                                     \
             uscan = foldbuf + skiplen;                                              \
         }                                                                           \
         break;                                                                      \
+    case trie_latin_utf8_exactfa_fold: \
+        flags |= FOLD_FLAGS_NOMIX_ASCII; \
+        /* FALL THROUGH */ \
     case trie_latin_utf8_fold:                                                      \
         if ( foldlen>0 ) {                                                          \
-            uvc = utf8n_to_uvuni( (const U8*) uscan, UTF8_MAXLEN, &len, uniflags ); \
+            uvc = utf8n_to_uvchr( (const U8*) uscan, UTF8_MAXLEN, &len, uniflags ); \
             foldlen -= len;                                                         \
             uscan += len;                                                           \
             len=0;                                                                  \
         } else {                                                                    \
             len = 1;                                                                \
-            uvc = _to_fold_latin1( (U8) *uc, foldbuf, &foldlen, FOLD_FLAGS_FULL);   \
+            uvc = _to_fold_latin1( (U8) *uc, foldbuf, &foldlen, flags);   \
             skiplen = UNISKIP( uvc );                                               \
             foldlen -= skiplen;                                                     \
             uscan = foldbuf + skiplen;                                              \
         }                                                                           \
         break;                                                                      \
     case trie_utf8:                                                                 \
-        uvc = utf8n_to_uvuni( (const U8*) uc, UTF8_MAXLEN, &len, uniflags );        \
+        uvc = utf8n_to_uvchr( (const U8*) uc, UTF8_MAXLEN, &len, uniflags );        \
         break;                                                                      \
     case trie_plain:                                                                \
         uvc = (UV)*uc;                                                              \
@@ -1487,6 +1497,9 @@ S_find_byclass(pTHX_ regexp * prog, const regnode *c, char *s,
         );
         break;
 
+    case EXACTFA_NO_TRIE:   /* This node only generated for non-utf8 patterns */
+        assert(! is_utf8_pat);
+	/* FALL THROUGH */
     case EXACTFA:
         if (is_utf8_pat || utf8_target) {
             utf8_fold_flags = FOLDEQ_UTF8_NOMIX_ASCII;
@@ -1496,10 +1509,9 @@ S_find_byclass(pTHX_ regexp * prog, const regnode *c, char *s,
         folder = foldEQ_latin1;	        /* /a, except the sharp s one which */
         goto do_exactf_non_utf8;	/* isn't dealt with by these */
 
-    case EXACTF:
+    case EXACTF:   /* This node only generated for non-utf8 patterns */
+        assert(! is_utf8_pat);
         if (utf8_target) {
-
-            /* regcomp.c already folded this if pattern is in UTF-8 */
             utf8_fold_flags = 0;
             goto do_exactf_utf8;
         }
@@ -1522,7 +1534,6 @@ S_find_byclass(pTHX_ regexp * prog, const regnode *c, char *s,
         }
         goto do_exactf_utf8;
 
-    case EXACTFU_TRICKYFOLD:
     case EXACTFU:
         if (is_utf8_pat || utf8_target) {
             utf8_fold_flags = is_utf8_pat ? FOLDEQ_S2_ALREADY_FOLDED : 0;
@@ -1629,13 +1640,13 @@ S_find_byclass(pTHX_ regexp * prog, const regnode *c, char *s,
     case BOUNDL:
         RXp_MATCH_TAINTED_on(prog);
         FBC_BOUND(isWORDCHAR_LC,
-                  isWORDCHAR_LC_uvchr(UNI_TO_NATIVE(tmp)),
+                  isWORDCHAR_LC_uvchr(tmp),
                   isWORDCHAR_LC_utf8((U8*)s));
         break;
     case NBOUNDL:
         RXp_MATCH_TAINTED_on(prog);
         FBC_NBOUND(isWORDCHAR_LC,
-                   isWORDCHAR_LC_uvchr(UNI_TO_NATIVE(tmp)),
+                   isWORDCHAR_LC_uvchr(tmp),
                    isWORDCHAR_LC_utf8((U8*)s));
         break;
     case BOUND:
@@ -1746,7 +1757,8 @@ S_find_byclass(pTHX_ regexp * prog, const regnode *c, char *s,
                                                                 classnum)))
                         || (UTF8_IS_DOWNGRADEABLE_START(*s)
                             && to_complement ^ cBOOL(
-                                _generic_isCC(TWO_BYTE_UTF8_TO_UNI(*s, *(s + 1)),
+                                _generic_isCC(TWO_BYTE_UTF8_TO_NATIVE(*s,
+                                                                      *(s + 1)),
                                               classnum))))
                     {
                         if (tmp && (reginfo->intuit || regtry(reginfo, &s)))
@@ -3433,7 +3445,7 @@ S_setup_EXACTISH_ST_c1_c2(pTHX_ const regnode * const text_node, int *c1p,
             SV** listp;
             if (! PL_utf8_foldclosures) {
                 if (! PL_utf8_tofold) {
-                    U8 dummy[UTF8_MAXBYTES+1];
+                    U8 dummy[UTF8_MAXBYTES_CASE+1];
 
                     /* Force loading this by folding an above-Latin1 char */
                     to_utf8_fold((U8*) HYPHEN_UTF8, dummy, NULL);
@@ -3486,7 +3498,8 @@ S_setup_EXACTISH_ST_c1_c2(pTHX_ const regnode * const text_node, int *c1p,
                      * which is the one above 255 */
                     if ((c1 < 256) != (c2 < 256)) {
                         if (OP(text_node) == EXACTFL
-                            || (OP(text_node) == EXACTFA
+                            || ((OP(text_node) == EXACTFA
+                                 || OP(text_node) == EXACTFA_NO_TRIE)
                                 && (isASCII(c1) || isASCII(c2))))
                         {
                             if (c1 < 256) {
@@ -3504,7 +3517,9 @@ S_setup_EXACTISH_ST_c1_c2(pTHX_ const regnode * const text_node, int *c1p,
              if (utf8_target
                  && HAS_NONLATIN1_FOLD_CLOSURE(c1)
                  && OP(text_node) != EXACTFL
-                 && (OP(text_node) != EXACTFA || ! isASCII(c1)))
+                 && ((OP(text_node) != EXACTFA
+                      && OP(text_node) != EXACTFA_NO_TRIE)
+                     || ! isASCII(c1)))
         {
             /* Here, there could be something above Latin1 in the target which
              * folds to this character in the pattern.  All such cases except
@@ -3525,7 +3540,9 @@ S_setup_EXACTISH_ST_c1_c2(pTHX_ const regnode * const text_node, int *c1p,
                     c2 = PL_fold_locale[c1];
                     break;
 
-                case EXACTF:
+                case EXACTF:   /* This node only generated for non-utf8
+                                  patterns */
+                    assert(! is_utf8_pat);
                     if (! utf8_target) {    /* /d rules */
                         c2 = PL_fold[c1];
                         break;
@@ -3533,8 +3550,11 @@ S_setup_EXACTISH_ST_c1_c2(pTHX_ const regnode * const text_node, int *c1p,
                     /* FALLTHROUGH */
                     /* /u rules for all these.  This happens to work for
                      * EXACTFA as nothing in Latin1 folds to ASCII */
+                case EXACTFA_NO_TRIE:   /* This node only generated for
+                                           non-utf8 patterns */
+                    assert(! is_utf8_pat);
+                    /* FALL THROUGH */
                 case EXACTFA:
-                case EXACTFU_TRICKYFOLD:
                 case EXACTFU_SS:
                 case EXACTFU:
                     c2 = PL_fold_latin1[c1];
@@ -4049,7 +4069,7 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
 
 		    while (chars) {
 			if (utf8_target) {
-			    uvc = utf8n_to_uvuni((U8*)uc, UTF8_MAXLEN, &len,
+			    uvc = utf8n_to_uvchr((U8*)uc, UTF8_MAXLEN, &len,
 						    uniflags);
 			    uc += len;
 			}
@@ -4062,7 +4082,7 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
 			while (foldlen) {
 			    if (!--chars)
 				break;
-			    uvc = utf8n_to_uvuni(uscan, UTF8_MAXLEN, &len,
+			    uvc = utf8n_to_uvchr(uscan, UTF8_MAXLEN, &len,
 					    uniflags);
 			    uscan += len;
 			    foldlen -= len;
@@ -4153,7 +4173,8 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
                             l++;
                         }
                         else {
-                            if (TWO_BYTE_UTF8_TO_UNI(*l, *(l+1)) != * (U8*) s) {
+                            if (TWO_BYTE_UTF8_TO_NATIVE(*l, *(l+1)) != * (U8*) s)
+                            {
                                 sayNO;
                             }
                             l += 2;
@@ -4176,7 +4197,8 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
                             s++;
                         }
                         else {
-                            if (TWO_BYTE_UTF8_TO_UNI(*s, *(s+1)) != * (U8*) l) {
+                            if (TWO_BYTE_UTF8_TO_NATIVE(*s, *(s+1)) != * (U8*) l)
+                            {
                                 sayNO;
                             }
                             s += 2;
@@ -4213,20 +4235,25 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
 	    goto do_exactf;
 
 	case EXACTFU_SS:         /*  /\x{df}/iu   */
-	case EXACTFU_TRICKYFOLD: /*  /\x{390}/iu  */
 	case EXACTFU:            /*  /abc/iu      */
 	    folder = foldEQ_latin1;
 	    fold_array = PL_fold_latin1;
 	    fold_utf8_flags = is_utf8_pat ? FOLDEQ_S1_ALREADY_FOLDED : 0;
 	    goto do_exactf;
 
+        case EXACTFA_NO_TRIE:   /* This node only generated for non-utf8
+                                   patterns */
+            assert(! is_utf8_pat);
+            /* FALL THROUGH */
 	case EXACTFA:            /*  /abc/iaa     */
 	    folder = foldEQ_latin1;
 	    fold_array = PL_fold_latin1;
 	    fold_utf8_flags = FOLDEQ_UTF8_NOMIX_ASCII;
 	    goto do_exactf;
 
-	case EXACTF:             /*  /abc/i       */
+        case EXACTF:             /*  /abc/i    This node only generated for
+                                               non-utf8 patterns */
+            assert(! is_utf8_pat);
 	    folder = foldEQ;
 	    fold_array = PL_fold;
 	    fold_utf8_flags = 0;
@@ -4302,7 +4329,7 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
                     }
 		}
 		else {
-		    ln = isWORDCHAR_LC_uvchr(UNI_TO_NATIVE(ln));
+		    ln = isWORDCHAR_LC_uvchr(ln);
 		    n = NEXTCHR_IS_EOS ? 0 : isWORDCHAR_LC_utf8((U8*)locinput);
 		}
 	    }
@@ -4391,7 +4418,7 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
             }
             else if (UTF8_IS_DOWNGRADEABLE_START(nextchr)) {
                 if (! (to_complement ^ cBOOL(isFOO_lc(FLAGS(scan),
-                                        (U8) TWO_BYTE_UTF8_TO_UNI(nextchr,
+                                           (U8) TWO_BYTE_UTF8_TO_NATIVE(nextchr,
                                                             *(locinput + 1))))))
                 {
                     sayNO;
@@ -4472,9 +4499,9 @@ S_regmatch(pTHX_ regmatch_info *reginfo, char *startpos, regnode *prog)
             }
             else if (UTF8_IS_DOWNGRADEABLE_START(nextchr)) {
                 if (! (to_complement
-                       ^ cBOOL(_generic_isCC(TWO_BYTE_UTF8_TO_UNI(nextchr,
+                       ^ cBOOL(_generic_isCC(TWO_BYTE_UTF8_TO_NATIVE(nextchr,
                                                                *(locinput + 1)),
-                                              FLAGS(scan)))))
+                                             FLAGS(scan)))))
                 {
                     sayNO;
                 }
@@ -5905,7 +5932,7 @@ NULL
                         /* simulate B failing */
                         DEBUG_OPTIMISE_r(
                             PerlIO_printf(Perl_debug_log,
-                                "%*s  CURLYM Fast bail next target=U+%"UVXf" c1=U+%"UVXf" c2=U+%"UVXf"\n",
+                                "%*s  CURLYM Fast bail next target=0x%"UVXf" c1=0x%"UVXf" c2=0x%"UVXf"\n",
                                 (int)(REPORT_CODE_OFF+(depth*2)),"",
                                 valid_utf8_to_uvchr((U8 *) locinput, NULL),
                                 valid_utf8_to_uvchr(ST.c1_utf8, NULL),
@@ -5919,7 +5946,7 @@ NULL
                     /* simulate B failing */
                     DEBUG_OPTIMISE_r(
                         PerlIO_printf(Perl_debug_log,
-                            "%*s  CURLYM Fast bail next target=U+%X c1=U+%X c2=U+%X\n",
+                            "%*s  CURLYM Fast bail next target=0x%X c1=0x%X c2=0x%X\n",
                             (int)(REPORT_CODE_OFF+(depth*2)),"",
                             (int) nextchr, ST.c1, ST.c2)
                     );
@@ -6860,7 +6887,7 @@ S_regrepeat(pTHX_ regexp *prog, char **startposp, const regnode *p,
 
                 /* Target isn't utf8; convert the character in the UTF-8
                  * pattern to non-UTF8, and do a simple loop */
-                c = TWO_BYTE_UTF8_TO_UNI(c, *(STRING(p) + 1));
+                c = TWO_BYTE_UTF8_TO_NATIVE(c, *(STRING(p) + 1));
                 while (scan < loceol && UCHARAT(scan) == c) {
                     scan++;
                 }
@@ -6887,8 +6914,11 @@ S_regrepeat(pTHX_ regexp *prog, char **startposp, const regnode *p,
 	}
 	break;
 
+    case EXACTFA_NO_TRIE:   /* This node only generated for non-utf8 patterns */
+        assert(! reginfo->is_utf8_pat);
+        /* FALL THROUGH */
     case EXACTFA:
-	utf8_flags = FOLDEQ_UTF8_NOMIX_ASCII;
+        utf8_flags = FOLDEQ_UTF8_NOMIX_ASCII;
 	goto do_exactf;
 
     case EXACTFL:
@@ -6896,12 +6926,12 @@ S_regrepeat(pTHX_ regexp *prog, char **startposp, const regnode *p,
 	utf8_flags = FOLDEQ_UTF8_LOCALE;
 	goto do_exactf;
 
-    case EXACTF:
-	    utf8_flags = 0;
-	    goto do_exactf;
+    case EXACTF:   /* This node only generated for non-utf8 patterns */
+        assert(! reginfo->is_utf8_pat);
+        utf8_flags = 0;
+        goto do_exactf;
 
     case EXACTFU_SS:
-    case EXACTFU_TRICKYFOLD:
     case EXACTFU:
 	utf8_flags = reginfo->is_utf8_pat ? FOLDEQ_S2_ALREADY_FOLDED : 0;
 
@@ -7087,8 +7117,8 @@ S_regrepeat(pTHX_ regexp *prog, char **startposp, const regnode *p,
                     }
                     else if (UTF8_IS_DOWNGRADEABLE_START(*scan)) {
                         if (! (to_complement
-                              ^ cBOOL(_generic_isCC(TWO_BYTE_UTF8_TO_UNI(*scan,
-                                                                   *(scan + 1)),
+                              ^ cBOOL(_generic_isCC(TWO_BYTE_UTF8_TO_NATIVE(*scan,
+                                                                     *(scan + 1)),
                                                     classnum))))
                         {
                             break;
