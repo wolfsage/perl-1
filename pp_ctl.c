@@ -1811,6 +1811,7 @@ PP(pp_caller)
     const HEK *stash_hek;
     I32 count = 0;
     bool has_arg = MAXARG && TOPs;
+    const COP *lcop;
 
     if (MAXARG) {
       if (has_arg)
@@ -1854,7 +1855,11 @@ PP(pp_caller)
 	PUSHTARG;
     }
     mPUSHs(newSVpv(OutCopFILE(cx->blk_oldcop), 0));
-    mPUSHi((I32)CopLINE(cx->blk_oldcop));
+    lcop = closest_cop(cx->blk_oldcop, cx->blk_oldcop->op_sibling,
+		       cx->blk_sub.retop, TRUE);
+    if (!lcop)
+	lcop = cx->blk_oldcop;
+    mPUSHi((I32)CopLINE(lcop));
     if (!has_arg)
 	RETURN;
     if (CxTYPE(cx) == CXt_SUB || CxTYPE(cx) == CXt_FORMAT) {
@@ -2771,7 +2776,7 @@ S_dofindlabel(pTHX_ OP *o, const char *label, STRLEN len, U32 flags, OP **opstac
     return 0;
 }
 
-PP(pp_goto)
+PP(pp_goto) /* also pp_dump */
 {
     dVAR; dSP;
     OP *retop = NULL;
@@ -2786,6 +2791,8 @@ PP(pp_goto)
     static const char* const must_have_label = "goto must have label";
 
     if (PL_op->op_flags & OPf_STACKED) {
+        /* goto EXPR  or  goto &foo */
+
 	SV * const sv = POPs;
 	SvGETMAGIC(sv);
 
@@ -2888,22 +2895,35 @@ PP(pp_goto)
 		OP* const retop = cx->blk_sub.retop;
 		SV **newsp;
 		I32 gimme;
-		const SSize_t items = AvFILLp(arg) + 1;
+		const SSize_t items = arg ? AvFILL(arg) + 1 : 0;
+		const bool m = arg ? SvRMAGICAL(arg) : 0;
 		SV** mark;
 
                 PERL_UNUSED_VAR(newsp);
                 PERL_UNUSED_VAR(gimme);
 
 		/* put GvAV(defgv) back onto stack */
-		EXTEND(SP, items+1); /* @_ could have been extended. */
-		Copy(AvARRAY(arg), SP + 1, items, SV*);
-		mark = SP;
-		SP += items;
-		if (AvREAL(arg)) {
-		    I32 index;
-		    for (index=0; index<items; index++)
-			SvREFCNT_inc_void(sv_2mortal(SP[-index]));
+		if (items) {
+		    EXTEND(SP, items+1); /* @_ could have been extended. */
 		}
+		mark = SP;
+		if (items) {
+		    SSize_t index;
+		    bool r = cBOOL(AvREAL(arg));
+		    for (index=0; index<items; index++)
+		    {
+			SV *sv;
+			if (m) {
+			    SV ** const svp = av_fetch(arg, index, 0);
+			    sv = svp ? *svp : NULL;
+			}
+			else sv = AvARRAY(arg)[index];
+			SP[index+1] = sv
+			    ? r ? SvREFCNT_inc_NN(sv_2mortal(sv)) : sv
+			    : sv_2mortal(newSVavdefelem(arg, index, 1));
+		    }
+		}
+		SP += items;
 		SvREFCNT_dec(arg);
 		if (CxTYPE(cx) == CXt_SUB && CxHASARGS(cx)) {
 		    /* Restore old @_ */
@@ -2976,11 +2996,13 @@ PP(pp_goto)
 	    }
 	}
 	else {
+            /* goto EXPR */
 	    label       = SvPV_nomg_const(sv, label_len);
             label_flags = SvUTF8(sv);
 	}
     }
     else if (!(PL_op->op_flags & OPf_SPECIAL)) {
+        /* goto LABEL  or  dump LABEL */
  	label       = cPVOP->op_pv;
         label_flags = (cPVOP->op_private & OPpPV_IS_UTF8) ? SVf_UTF8 : 0;
         label_len   = strlen(label);
@@ -3581,7 +3603,8 @@ STATIC PerlIO *
 S_check_type_and_open(pTHX_ SV *name)
 {
     Stat_t st;
-    const char *p = SvPV_nolen_const(name);
+    STRLEN len;
+    const char *p = SvPV_const(name, len);
     int st_rc;
 
     PERL_ARGS_ASSERT_CHECK_TYPE_AND_OPEN;
@@ -3592,7 +3615,7 @@ S_check_type_and_open(pTHX_ SV *name)
      * rather than for the .pm file.
      * This check prevents a \0 in @INC causing problems.
      */
-    if (!IS_SAFE_PATHNAME(name, "require"))
+    if (!IS_SAFE_PATHNAME(p, len, "require"))
         return NULL;
 
     st_rc = PerlLIO_stat(p, &st);
@@ -3621,7 +3644,7 @@ S_doopen_pm(pTHX_ SV *name)
      * warning referring to the .pmc which the user probably doesn't
      * know or care about
      */
-    if (!IS_SAFE_PATHNAME(name, "require"))
+    if (!IS_SAFE_PATHNAME(p, namelen, "require"))
         return NULL;
 
     if (namelen > 3 && memEQs(p + namelen - 3, 3, ".pm")) {
@@ -3756,7 +3779,7 @@ PP(pp_require)
     name = SvPV_const(sv, len);
     if (!(name && len > 0 && *name))
 	DIE(aTHX_ "Null filename used");
-    if (!IS_SAFE_PATHNAME(sv, "require")) {
+    if (!IS_SAFE_PATHNAME(name, len, "require")) {
         DIE(aTHX_ "Can't locate %s:   %s",
             pv_escape(newSVpvs_flags("",SVs_TEMP),SvPVX(sv),SvCUR(sv),
                       SvCUR(sv)*2,NULL, SvUTF8(sv)?PERL_PV_ESCAPE_UNI:0),

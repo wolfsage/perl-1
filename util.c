@@ -1178,15 +1178,20 @@ Perl_mess(pTHX_ const char *pat, ...)
     return retval;
 }
 
-STATIC const COP*
-S_closest_cop(pTHX_ const COP *cop, const OP *o)
+const COP*
+Perl_closest_cop(pTHX_ const COP *cop, const OP *o, const OP *curop,
+		       bool opnext)
 {
     dVAR;
-    /* Look for PL_op starting from o.  cop is the last COP we've seen. */
+    /* Look for curop starting from o.  cop is the last COP we've seen. */
+    /* opnext means that curop is actually the ->op_next of the op we are
+       seeking. */
 
     PERL_ARGS_ASSERT_CLOSEST_COP;
 
-    if (!o || o == PL_op)
+    if (!o || !curop || (
+	opnext ? o->op_next == curop && o->op_type != OP_SCOPE : o == curop
+    ))
 	return cop;
 
     if (o->op_flags & OPf_KIDS) {
@@ -1202,7 +1207,7 @@ S_closest_cop(pTHX_ const COP *cop, const OP *o)
 
 	    /* Keep searching, and return when we've found something. */
 
-	    new_cop = closest_cop(cop, kid);
+	    new_cop = closest_cop(cop, kid, curop, opnext);
 	    if (new_cop)
 		return new_cop;
 	}
@@ -1272,7 +1277,8 @@ Perl_mess_sv(pTHX_ SV *basemsg, bool consume)
 	 * from the sibling of PL_curcop.
 	 */
 
-	const COP *cop = closest_cop(PL_curcop, PL_curcop->op_sibling);
+	const COP *cop =
+	    closest_cop(PL_curcop, PL_curcop->op_sibling, PL_op, FALSE);
 	if (!cop)
 	    cop = PL_curcop;
 
@@ -2749,7 +2755,7 @@ Perl_my_pclose(pTHX_ PerlIO *ptr)
     svp = av_fetch(PL_fdpid,fd,TRUE);
     pid = (SvTYPE(*svp) == SVt_IV) ? SvIVX(*svp) : -1;
     SvREFCNT_dec(*svp);
-    *svp = &PL_sv_undef;
+    *svp = NULL;
 #ifdef OS2
     if (pid == -1) {			/* Opened by popen. */
 	return my_syspclose(ptr);
@@ -4462,10 +4468,10 @@ Perl_upg_version(pTHX_ SV *ver, bool qv)
 	char *buf;
 #ifdef USE_LOCALE_NUMERIC
 	char *loc = NULL;
-        if (! PL_numeric_standard) {
-            loc = savepv(setlocale(LC_NUMERIC, NULL));
-            setlocale(LC_NUMERIC, "C");
-        }
+	if (! PL_numeric_standard) {
+	    loc = savepv(setlocale(LC_NUMERIC, NULL));
+	    setlocale(LC_NUMERIC, "C");
+	}
 #endif
 	if (sv) {
 	    Perl_sv_setpvf(aTHX_ sv, "%.9"NVff, SvNVX(ver));
@@ -4476,10 +4482,10 @@ Perl_upg_version(pTHX_ SV *ver, bool qv)
 	    buf = tbuf;
 	}
 #ifdef USE_LOCALE_NUMERIC
-        if (loc) {
-            setlocale(LC_NUMERIC, loc);
-            Safefree(loc);
-        }
+	if (loc) {
+	    setlocale(LC_NUMERIC, loc);
+	    Safefree(loc);
+	}
 #endif
 	while (buf[len-1] == '0' && len > 0) len--;
 	if ( buf[len-1] == '.' ) len--; /* eat the trailing decimal */
@@ -4786,7 +4792,7 @@ converted into version objects.
 int
 Perl_vcmp(pTHX_ SV *lhv, SV *rhv)
 {
-    I32 i,l,m,r;
+    SSize_t i,l,m,r;
     I32 retval;
     bool lalpha = FALSE;
     bool ralpha = FALSE;

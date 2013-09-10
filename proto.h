@@ -663,6 +663,11 @@ PERL_CALLCONV void	Perl_ck_warner_d(pTHX_ U32 err, const char* pat, ...)
 
 PERL_CALLCONV bool	Perl_ckwarn(pTHX_ U32 w);
 PERL_CALLCONV bool	Perl_ckwarn_d(pTHX_ U32 w);
+PERL_CALLCONV const COP*	Perl_closest_cop(pTHX_ const COP *cop, const OP *o, const OP *curop, bool opnext)
+			__attribute__nonnull__(pTHX_1);
+#define PERL_ARGS_ASSERT_CLOSEST_COP	\
+	assert(cop)
+
 PERL_CALLCONV OP*	Perl_convert(pTHX_ I32 optype, I32 flags, OP* o)
 			__attribute__warn_unused_result__;
 
@@ -1756,11 +1761,11 @@ PERL_CALLCONV bool	Perl_is_ascii_string(const U8 *s, STRLEN len)
 PERL_CALLCONV I32	Perl_is_lvalue_sub(pTHX)
 			__attribute__warn_unused_result__;
 
-PERL_STATIC_INLINE bool	S_is_safe_syscall(pTHX_ SV *pv, const char *what, const char *op_name)
+PERL_STATIC_INLINE bool	S_is_safe_syscall(pTHX_ const char *pv, STRLEN len, const char *what, const char *op_name)
 			__attribute__warn_unused_result__
 			__attribute__nonnull__(pTHX_1)
-			__attribute__nonnull__(pTHX_2)
-			__attribute__nonnull__(pTHX_3);
+			__attribute__nonnull__(pTHX_3)
+			__attribute__nonnull__(pTHX_4);
 #define PERL_ARGS_ASSERT_IS_SAFE_SYSCALL	\
 	assert(pv); assert(what); assert(op_name)
 
@@ -2882,6 +2887,13 @@ PERL_CALLCONV OP*	Perl_newSVREF(pTHX_ OP* o)
 PERL_CALLCONV SV*	Perl_newSV_type(pTHX_ const svtype type)
 			__attribute__malloc__
 			__attribute__warn_unused_result__;
+
+PERL_CALLCONV SV*	Perl_newSVavdefelem(pTHX_ AV *av, SSize_t ix, bool extendible)
+			__attribute__malloc__
+			__attribute__warn_unused_result__
+			__attribute__nonnull__(pTHX_1);
+#define PERL_ARGS_ASSERT_NEWSVAVDEFELEM	\
+	assert(av)
 
 PERL_CALLCONV SV*	Perl_newSVhek(pTHX_ const HEK *const hek)
 			__attribute__malloc__
@@ -7519,11 +7531,6 @@ PERL_CALLCONV UV	Perl__to_fold_latin1(pTHX_ const U8 c, U8 *p, STRLEN *lenp, con
 #endif
 #if defined(PERL_IN_UTIL_C)
 STATIC bool	S_ckwarn_common(pTHX_ U32 w);
-STATIC const COP*	S_closest_cop(pTHX_ const COP *cop, const OP *o)
-			__attribute__nonnull__(pTHX_1);
-#define PERL_ARGS_ASSERT_CLOSEST_COP	\
-	assert(cop)
-
 STATIC bool	S_invoke_exception_hook(pTHX_ SV *ex, bool warn);
 STATIC SV*	S_mess_alloc(pTHX);
 STATIC SV *	S_with_queued_errors(pTHX_ SV *ex)
@@ -7849,10 +7856,10 @@ PERL_CALLCONV int	Perl_PerlIO_fileno(pTHX_ PerlIO *f);
 PERL_CALLCONV int	Perl_PerlIO_fill(pTHX_ PerlIO *f);
 PERL_CALLCONV int	Perl_PerlIO_flush(pTHX_ PerlIO *f);
 PERL_CALLCONV STDCHAR *	Perl_PerlIO_get_base(pTHX_ PerlIO *f);
-PERL_CALLCONV int	Perl_PerlIO_get_bufsiz(pTHX_ PerlIO *f)
+PERL_CALLCONV SSize_t	Perl_PerlIO_get_bufsiz(pTHX_ PerlIO *f)
 			__attribute__warn_unused_result__;
 
-PERL_CALLCONV int	Perl_PerlIO_get_cnt(pTHX_ PerlIO *f)
+PERL_CALLCONV SSize_t	Perl_PerlIO_get_cnt(pTHX_ PerlIO *f)
 			__attribute__warn_unused_result__;
 
 PERL_CALLCONV STDCHAR *	Perl_PerlIO_get_ptr(pTHX_ PerlIO *f);
@@ -7862,8 +7869,8 @@ PERL_CALLCONV SSize_t	Perl_PerlIO_read(pTHX_ PerlIO *f, void *vbuf, Size_t count
 	assert(vbuf)
 
 PERL_CALLCONV int	Perl_PerlIO_seek(pTHX_ PerlIO *f, Off_t offset, int whence);
-PERL_CALLCONV void	Perl_PerlIO_set_cnt(pTHX_ PerlIO *f, int cnt);
-PERL_CALLCONV void	Perl_PerlIO_set_ptrcnt(pTHX_ PerlIO *f, STDCHAR *ptr, int cnt);
+PERL_CALLCONV void	Perl_PerlIO_set_cnt(pTHX_ PerlIO *f, SSize_t cnt);
+PERL_CALLCONV void	Perl_PerlIO_set_ptrcnt(pTHX_ PerlIO *f, STDCHAR *ptr, SSize_t cnt);
 PERL_CALLCONV void	Perl_PerlIO_setlinebuf(pTHX_ PerlIO *f);
 PERL_CALLCONV PerlIO *	Perl_PerlIO_stderr(pTHX)
 			__attribute__warn_unused_result__;

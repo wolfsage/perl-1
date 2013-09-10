@@ -7944,9 +7944,9 @@ Perl_sv_gets(pTHX_ SV *const sv, PerlIO *const fp, I32 append)
     STRLEN rslen;
     STDCHAR rslast;
     STDCHAR *bp;
-    I32 cnt;
-    I32 i = 0;
-    I32 rspara = 0;
+    SSize_t cnt;
+    int i = 0;
+    int rspara = 0;
 
     PERL_ARGS_ASSERT_SV_GETS;
 
@@ -8091,8 +8091,9 @@ Perl_sv_gets(pTHX_ SV *const sv, PerlIO *const fp, I32 append)
     DEBUG_P(PerlIO_printf(Perl_debug_log,
 	"Screamer: entering, ptr=%"UVuf", cnt=%ld\n",PTR2UV(ptr),(long)cnt));
     DEBUG_P(PerlIO_printf(Perl_debug_log,
-	"Screamer: entering: PerlIO * thinks ptr=%"UVuf", cnt=%ld, base=%"UVuf"\n",
-	       PTR2UV(PerlIO_get_ptr(fp)), (long)PerlIO_get_cnt(fp),
+	"Screamer: entering: PerlIO * thinks ptr=%"UVuf", cnt=%zd, base=%"
+	 UVuf"\n",
+	       PTR2UV(PerlIO_get_ptr(fp)), PerlIO_get_cnt(fp),
 	       PTR2UV(PerlIO_has_base(fp) ? PerlIO_get_base(fp) : 0)));
     for (;;) {
       screamer:
@@ -8126,13 +8127,13 @@ Perl_sv_gets(pTHX_ SV *const sv, PerlIO *const fp, I32 append)
 
     cannot_be_shortbuffered:
 	DEBUG_P(PerlIO_printf(Perl_debug_log,
-			      "Screamer: going to getc, ptr=%"UVuf", cnt=%ld\n",
-			      PTR2UV(ptr),(long)cnt));
+			     "Screamer: going to getc, ptr=%"UVuf", cnt=%zd\n",
+			      PTR2UV(ptr),cnt));
 	PerlIO_set_ptrcnt(fp, (STDCHAR*)ptr, cnt); /* deregisterize cnt and ptr */
 
 	DEBUG_Pv(PerlIO_printf(Perl_debug_log,
-	    "Screamer: pre: FILE * thinks ptr=%"UVuf", cnt=%ld, base=%"UVuf"\n",
-	    PTR2UV(PerlIO_get_ptr(fp)), (long)PerlIO_get_cnt(fp),
+	   "Screamer: pre: FILE * thinks ptr=%"UVuf", cnt=%zd, base=%"UVuf"\n",
+	    PTR2UV(PerlIO_get_ptr(fp)), PerlIO_get_cnt(fp),
 	    PTR2UV(PerlIO_has_base (fp) ? PerlIO_get_base(fp) : 0)));
 
 	/* This used to call 'filbuf' in stdio form, but as that behaves like
@@ -8141,14 +8142,15 @@ Perl_sv_gets(pTHX_ SV *const sv, PerlIO *const fp, I32 append)
 	i   = PerlIO_getc(fp);		/* get more characters */
 
 	DEBUG_Pv(PerlIO_printf(Perl_debug_log,
-	    "Screamer: post: FILE * thinks ptr=%"UVuf", cnt=%ld, base=%"UVuf"\n",
-	    PTR2UV(PerlIO_get_ptr(fp)), (long)PerlIO_get_cnt(fp),
+	   "Screamer: post: FILE * thinks ptr=%"UVuf", cnt=%zd, base=%"UVuf"\n",
+	    PTR2UV(PerlIO_get_ptr(fp)), PerlIO_get_cnt(fp),
 	    PTR2UV(PerlIO_has_base (fp) ? PerlIO_get_base(fp) : 0)));
 
 	cnt = PerlIO_get_cnt(fp);
 	ptr = (STDCHAR*)PerlIO_get_ptr(fp);	/* reregisterize cnt and ptr */
 	DEBUG_P(PerlIO_printf(Perl_debug_log,
-	    "Screamer: after getc, ptr=%"UVuf", cnt=%ld\n",PTR2UV(ptr),(long)cnt));
+	    "Screamer: after getc, ptr=%"UVuf", cnt=%zd\n",
+	     PTR2UV(ptr),cnt));
 
 	if (i == EOF)			/* all done for ever? */
 	    goto thats_really_all_folks;
@@ -8172,11 +8174,12 @@ thats_really_all_folks:
     if (shortbuffered)
 	cnt += shortbuffered;
 	DEBUG_P(PerlIO_printf(Perl_debug_log,
-	    "Screamer: quitting, ptr=%"UVuf", cnt=%ld\n",PTR2UV(ptr),(long)cnt));
+	    "Screamer: quitting, ptr=%"UVuf", cnt=%zd\n",PTR2UV(ptr),cnt));
     PerlIO_set_ptrcnt(fp, (STDCHAR*)ptr, cnt);	/* put these back or we're in trouble */
     DEBUG_P(PerlIO_printf(Perl_debug_log,
-	"Screamer: end: FILE * thinks ptr=%"UVuf", cnt=%ld, base=%"UVuf"\n",
-	PTR2UV(PerlIO_get_ptr(fp)), (long)PerlIO_get_cnt(fp),
+	"Screamer: end: FILE * thinks ptr=%"UVuf", cnt=%zd, base=%"UVuf
+	"\n",
+	PTR2UV(PerlIO_get_ptr(fp)), PerlIO_get_cnt(fp),
 	PTR2UV(PerlIO_has_base (fp) ? PerlIO_get_base(fp) : 0)));
     *bp = '\0';
     SvCUR_set(sv, bp - (STDCHAR*)SvPVX_const(sv));	/* set length */
@@ -9661,6 +9664,19 @@ Perl_newSVrv(pTHX_ SV *const rv, const char *const classname)
     return sv;
 }
 
+SV *
+Perl_newSVavdefelem(pTHX_ AV *av, SSize_t ix, bool extendible)
+{
+    SV * const lv = newSV_type(SVt_PVLV);
+    PERL_ARGS_ASSERT_NEWSVAVDEFELEM;
+    LvTYPE(lv) = 'y';
+    sv_magic(lv, NULL, PERL_MAGIC_defelem, NULL, 0);
+    LvTARG(lv) = SvREFCNT_inc_simple_NN(av);
+    LvSTARGOFF(lv) = ix;
+    LvTARGLEN(lv) = extendible ? 1 : (STRLEN)UV_MAX;
+    return lv;
+}
+
 /*
 =for apidoc sv_setref_pv
 
@@ -9798,6 +9814,7 @@ Perl_sv_bless(pTHX_ SV *const sv, HV *const stash)
 {
     dVAR;
     SV *tmpRef;
+    HV *oldstash = NULL;
 
     PERL_ARGS_ASSERT_SV_BLESS;
 
@@ -9809,12 +9826,13 @@ Perl_sv_bless(pTHX_ SV *const sv, HV *const stash)
 	if (SvREADONLY(tmpRef))
 	    Perl_croak_no_modify();
 	if (SvOBJECT(tmpRef)) {
-	    SvREFCNT_dec(SvSTASH(tmpRef));
+	    oldstash = SvSTASH(tmpRef);
 	}
     }
     SvOBJECT_on(tmpRef);
     SvUPGRADE(tmpRef, SVt_PVMG);
     SvSTASH_set(tmpRef, MUTABLE_HV(SvREFCNT_inc_simple(stash)));
+    SvREFCNT_dec(oldstash);
 
     if(SvSMAGICAL(tmpRef))
         if(mg_find(tmpRef, PERL_MAGIC_ext) || mg_find(tmpRef, PERL_MAGIC_uvar))
@@ -10382,6 +10400,9 @@ Perl_sv_vcatpvfn_flags(pTHX_ SV *const sv, const char *const pat, const STRLEN p
     char ebuf[IV_DIG * 4 + NV_DIG + 32];
     /* large enough for "%#.#f" --chip */
     /* what about long double NVs? --jhi */
+#ifdef USE_LOCALE_NUMERIC
+    SV* oldlocale = NULL;
+#endif
 
     PERL_ARGS_ASSERT_SV_VCATPVFN_FLAGS;
     PERL_UNUSED_ARG(maybe_tainted);
@@ -11342,6 +11363,21 @@ Perl_sv_vcatpvfn_flags(pTHX_ SV *const sv, const char *const pat, const STRLEN p
 		/* No taint.  Otherwise we are in the strange situation
 		 * where printf() taints but print($float) doesn't.
 		 * --jhi */
+
+#ifdef USE_LOCALE_NUMERIC
+                if (! PL_numeric_standard && ! IN_SOME_LOCALE_FORM) {
+
+                    /* We use a mortal SV, so that any failures (such as if
+                     * warnings are made fatal) won't leak */
+                    char *oldlocale_string = setlocale(LC_NUMERIC, NULL);
+                    oldlocale = newSVpvn_flags(oldlocale_string,
+                                               strlen(oldlocale_string),
+                                               SVs_TEMP);
+                    PL_numeric_standard = TRUE;
+                    setlocale(LC_NUMERIC, "C");
+                }
+#endif
+
 #if defined(HAS_LONG_DOUBLE)
 		elen = ((intsize == 'q')
 			? my_snprintf(PL_efloatbuf, PL_efloatsize, ptr, nv)
@@ -11517,6 +11553,14 @@ Perl_sv_vcatpvfn_flags(pTHX_ SV *const sv, const char *const pat, const STRLEN p
 	}
     }
     SvTAINT(sv);
+
+#ifdef USE_LOCALE_NUMERIC   /* Done outside loop, so don't have to save/restore
+                               each iteration. */
+    if (oldlocale) {
+        setlocale(LC_NUMERIC, SvPVX(oldlocale));
+        PL_numeric_standard = FALSE;
+    }
+#endif
 }
 
 /* =========================================================================

@@ -1473,7 +1473,7 @@ is the recommended Unicode-aware way of saying
     if ( UTF ) {                                                              \
         /* if it is UTF then it is either already folded, or does not need    \
          * folding */                                                         \
-        uvc = utf8n_to_uvuni( (const U8*) uc, UTF8_MAXLEN, &len, uniflags);   \
+        uvc = valid_utf8_to_uvchr( (const U8*) uc, &len);                     \
     }                                                                         \
     else if (folder == PL_fold_latin1) {                                      \
         /* This folder implies Unicode rules, which in the range expressible  \
@@ -1573,7 +1573,6 @@ S_make_trie(pTHX_ RExC_state_t *pRExC_state, regnode *startbranch, regnode *firs
     HV *widecharmap = NULL;
     AV *revcharmap = newAV();
     regnode *cur;
-    const U32 uniflags = UTF8_ALLOW_DEFAULT;
     STRLEN len = 0;
     UV uvc = 0;
     U16 curword = 0;
@@ -4882,7 +4881,7 @@ Perl_current_re_engine(pTHX)
 	HV * const table = GvHV(PL_hintgv);
 	SV **ptr;
 
-	if (!table)
+	if (!table || !(PL_hints & HINT_LOCALIZE_HH))
 	    return &PL_core_reg_engine;
 	ptr = hv_fetchs(table, "regcomp", FALSE);
 	if ( !(ptr && SvIOK(*ptr) && SvIV(*ptr)))
@@ -5031,6 +5030,7 @@ S_concat_pat(pTHX_ RExC_state_t * const pRExC_state,
         STRLEN orig_patlen = 0;
         bool code = 0;
         SV *msv = use_delim ? delim : *svp;
+        if (!msv) msv = &PL_sv_undef;
 
         /* if we've got a delimiter, we go round the loop twice for each
          * svp slot (except the last), using the delimiter the second
@@ -5049,7 +5049,7 @@ S_concat_pat(pTHX_ RExC_state_t * const pRExC_state,
              * The code in this block is based on S_pushav() */
 
             AV *const av = (AV*)msv;
-            const I32 maxarg = AvFILL(av) + 1;
+            const SSize_t maxarg = AvFILL(av) + 1;
             SV **array;
 
             if (oplist) {
@@ -5059,11 +5059,11 @@ S_concat_pat(pTHX_ RExC_state_t * const pRExC_state,
             }
 
             if (SvRMAGICAL(av)) {
-                U32 i;
+                SSize_t i;
 
                 Newx(array, maxarg, SV*);
                 SAVEFREEPV(array);
-                for (i=0; i < (U32)maxarg; i++) {
+                for (i=0; i < maxarg; i++) {
                     SV ** const svp = av_fetch(av, i, FALSE);
                     array[i] = svp ? *svp : &PL_sv_undef;
                 }

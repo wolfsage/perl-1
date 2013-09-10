@@ -2860,6 +2860,7 @@ cpan/version/t/04strict_lax.t		Tests for version objects
 cpan/version/t/05sigdie.t		Tests for version objects
 cpan/version/t/06noop.t			Tests for version objects
 cpan/version/t/07locale.t		Tests for version objects
+cpan/version/t/08_corelist.t		Tests for version objects
 cpan/version/t/coretests.pm		Tests for version objects
 cpan/Win32API-File/buffers.h	Win32API::File extension
 cpan/Win32API-File/cFile.h	Win32API::File extension
@@ -3643,7 +3644,6 @@ ext/Devel-Peek/Peek.pm		Data debugging tool, module and pod
 ext/Devel-Peek/Peek.xs		Data debugging tool, externals
 ext/Devel-Peek/t/Peek.t		See if Devel::Peek works
 ext/DynaLoader/dl_aix.xs	AIX implementation
-ext/DynaLoader/dl_dld.xs	GNU dld style implementation
 ext/DynaLoader/dl_dllload.xs	S/390 dllload() style implementation
 ext/DynaLoader/dl_dlopen.xs	BSD/SunOS4&5 dlopen() style implementation
 ext/DynaLoader/dl_dyld.xs	NeXT/Apple dyld implementation
@@ -4060,8 +4060,6 @@ haiku/Haiku/Haiku.xs		Haiku extension external subroutines
 haiku/haikuish.h		Header for the Haiku port
 haiku/Haiku/Makefile.PL		Haiku extension makefile writer
 handy.h				Handy definitions
-hints/3b1cc			Hints for named architecture
-hints/3b1.sh			Hints for named architecture
 hints/aix_3.sh			Hints for named architecture
 hints/aix_4.sh			Hints for named architecture
 hints/aix.sh			Hints for named architecture
@@ -4702,6 +4700,7 @@ pod/perlref.pod			Perl references, the rest of the story
 pod/perlreftut.pod		Perl references short introduction
 pod/perlreguts.pod		Perl regular expression engine internals
 pod/perlre.pod			Perl regular expressions, the rest of the story
+pod/perlrepository.pod		
 pod/perlrequick.pod		Perl regular expressions quick start
 pod/perlreref.pod		Perl regular expressions quick reference
 pod/perlretut.pod		Perl regular expressions tutorial
