@@ -37,13 +37,23 @@ L</Selected Bug Fixes> section.
 
 =head1 Incompatible Changes
 
-XXX For a release on a stable branch, this section aspires to be:
+=head2 Locale decimal point character no longer leaks outside of
+S<C<use locale>> scope (with the exception of C<$!>)
 
-    There are no changes intentionally incompatible with 5.XXX.XXX
-    If any exist, they are bugs, and we request that you submit a
-    report.  See L</Reporting Bugs> below.
+This is actually a bug fix, but some code has come to rely on the bug being
+present, so this change is listed here.  The current locale that the program is
+running under is not supposed to be visible to Perl code except within the
+scope of a S<C<use locale>>.  However, until now under certain circumstances,
+the character used for a decimal point (often a comma) leaked outside the
+scope.
 
-[ List each incompatible change as a =head2 entry ]
+This continues the work released in Perl 5.19.1.  It turns out that that did
+not catch all the leaks, including C<printf> and C<sprintf> not respecting
+S<C<use locale>>.  If your code is affected by this change, simply add a
+S<C<use locale>>.
+
+Now, the only known place where C<'use locale'> is not respected is in the
+stringification of L<$!|perlvar/$!>.
 
 =head1 Deprecations
 
@@ -82,8 +92,8 @@ as an updated module in the L</Modules and Pragmata> section.
 
 =item *
 
-The trie performance enhancement for regular expressions has now been
-extended to those compiled under C</iaa>.
+The trie performance enhancement for regular expressions has now been extended
+to those compiled under C</iaa>.
 
 =back
 
@@ -115,12 +125,19 @@ XXX
 
 =item *
 
+L<autodie> has been upgraded from version 2.20 to 2.21.
+
+Numerous improvements have been made, many speed-related.  See the F<Changes>
+file in the CPAN distribution for full details.
+
+=item *
+
 L<B> has been upgraded from version 1.45 to 1.46.
 
 The fix for [perl #118525] introduced a regression in the behaviour of
-C<B::CV::GV>, changing the return value from a C<B::SPECIAL> object on
-a C<NULL> C<CvGV> to C<undef>.  C<B::CV::GV> again returns a
-C<B::SPECIAL> object in this case. [perl #119351]
+C<B::CV::GV>, changing the return value from a C<B::SPECIAL> object on a
+C<NULL> C<CvGV> to C<undef>.  C<B::CV::GV> again returns a C<B::SPECIAL>
+object in this case. [perl #119351]
 
 =item *
 
@@ -136,9 +153,9 @@ L<Carp> has been upgraded from version 1.31 to 1.32.
 
 =item *
 
-In stack traces, subroutine arguments that are strings are now quoted
-in a consistent manner, regardless of what characters they contain and
-how they're internally represented.
+In stack traces, subroutine arguments that are strings are now quoted in a
+consistent manner, regardless of what characters they contain and how they're
+internally represented.
 
 =item *
 
@@ -147,16 +164,36 @@ C<overload> stash.
 
 =item *
 
-C<Carp> now avoids some unwanted Unicode warnings on older Perls.  This
-doesn't affect behaviour with current Perl.
+C<Carp> now avoids some unwanted Unicode warnings on older Perls.  This doesn't
+affect behaviour with current Perl.
 
 =item *
 
-C<Carp::Heavy> detects version mismatch with C<Carp>, to give a good
-error message if a current (stub) C<Carp::Heavy> gets loaded by an old
-C<Carp> that expects C<Carp::Heavy> to provide subroutines.
+C<Carp::Heavy> detects version mismatch with C<Carp>, to give a good error
+message if a current (stub) C<Carp::Heavy> gets loaded by an old C<Carp> that
+expects C<Carp::Heavy> to provide subroutines.
 
 =back
+
+=item *
+
+L<charnames> has been upgraded from version 1.38 to 1.39.
+
+This module now works on EBCDIC platforms.
+
+=item *
+
+L<CPAN::Meta> has been upgraded from version 2.132140 to 2.132510.
+
+No changes have been made to the installed code other than the version bump to
+keep in sync with the latest CPAN release.
+
+=item *
+
+L<CPAN::Meta::Requirements> has been upgraded from version 2.122 to 2.123.
+
+No changes have been made to the installed code other than the version bump to
+keep in sync with the latest CPAN release.
 
 =item *
 
@@ -164,6 +201,8 @@ L<Data::Dumper> has been upgraded from version 2.148 to 2.149.
 
 This upgrade is part of a larger change to make the array interface 64-bit safe
 by using SSize_t instead of I32 for array indices.
+
+In addition, an EBCDIC fix has been applied.
 
 =item *
 
@@ -173,6 +212,9 @@ This upgrade is part of a larger change to preserve referential identity when
 passing C<undef> to a subroutine by using NULL rather than &PL_sv_undef for
 nonexistent array elements.
 
+In addition, C<Dump> with no args was broken in Perl 5.19.3, but has now been
+fixed.
+
 =item *
 
 L<DynaLoader> has been upgraded from version 1.19 to 1.20.
@@ -180,7 +222,7 @@ L<DynaLoader> has been upgraded from version 1.19 to 1.20.
 The documentation now makes it clear, as has always been the case, that
 C<dl_unload_file> is only called automatically to unload all loaded shared
 objects if the perl interpreter was built with the C macro
-DL_UNLOAD_ALL_AT_EXIT defined.
+DL_UNLOAD_ALL_AT_EXIT defined.  Support for GNU DLD has also been removed.
 
 =item *
 
@@ -191,7 +233,27 @@ C<_utf8_on> under COW has been fixed.
 
 =item *
 
-L<ExtUtils::MakeMaker> has been upgraded from version 6.72 to 6.74.
+L<Exporter> has been upgraded from version 5.69 to 5.70.
+
+A number of typos have been corrected in the documentation.
+
+=item *
+
+L<ExtUtils::CBuilder> has been upgraded from version 0.280205 to 0.280212.
+
+No changes have been made to the installed code other than the version bump to
+keep in sync with the latest CPAN release.
+
+=item *
+
+L<ExtUtils::Command> has been upgraded from version 1.17 to 1.18.
+
+No changes have been made to the installed code other than the version bump to
+keep in sync with the latest CPAN release.
+
+=item *
+
+L<ExtUtils::MakeMaker> has been upgraded from version 6.72 to 6.76.
 
 Numerous updates and bug fixes are incorporated.  See the F<Changes> file for
 full details.
@@ -200,19 +262,34 @@ full details.
 
 L<ExtUtils::ParseXS> has been upgraded from version 3.21 to 3.22.
 
-No changes have been made other than the version bump to keep in sync with the
-latest CPAN release.
+No changes have been made to the installed code other than the version bump to
+keep in sync with the latest CPAN release.
 
 =item *
 
 L<File::Glob> has been upgraded from version 1.20 to 1.21.
 
-C<glob()> now warns in the context of C<use warnings "syscalls";> if
-the supplied pattern has an internal NUL (C<"\0">) character.
+C<glob()> now warns in the context of C<use warnings "syscalls";> if the
+supplied pattern has an internal NUL (C<"\0">) character.
 
 =item *
 
-L<IPC::Open3> has been upgraded from 1.15 to 1.16.
+L<HTTP::Tiny> has been upgraded from version 0.034 to 0.035.
+
+Encoded data from C<post_form> now preserves term order if data is provided as
+an array reference.  (They are still sorted for consistency if provided as a
+hash reference.)
+
+=item *
+
+L<I18N::LangTags> has been upgraded from version 0.39 to 0.40.
+
+Bosnian has now joined Croatian and Serbian in the lists of mutually
+intelligible Slavic languages. [perl #72594]
+
+=item *
+
+L<IPC::Open3> has been upgraded from version 1.15 to 1.16.
 
 This upgrade is part of a larger change to preserve referential identity when
 passing C<undef> to a subroutine by using NULL rather than &PL_sv_undef for
@@ -220,10 +297,17 @@ nonexistent array elements.
 
 =item *
 
+L<Locale::Codes> has been upgraded from version 3.26 to 3.27.
+
+New codes have been added and the (deprecated) set of FIPS-10 country codes has
+been removed.
+
+=item *
+
 L<Math::BigInt> has been upgraded from version 1.9992 to 1.9993.
 
-Cleaned up the L<Math::BigInt> and L<Math::BigFloat> documentation to
-be more consistent with other perl documentation. [perl #86686]
+Cleaned up the L<Math::BigInt> and L<Math::BigFloat> documentation to be more
+consistent with other perl documentation. [perl #86686]
 
 Added a bint() method for rounding towards zero. [perl #85296]
 
@@ -242,27 +326,42 @@ The list of Perl versions covered has been updated.
 
 =item *
 
-L<Module::Load::Conditional> has been upgraded from version 0.54 to 0.56.
+L<Module::Load::Conditional> has been upgraded from version 0.54 to 0.58.
 
 C<requires> has been made more robust. [cpan #83728]
 
 =item *
 
-L<Module::Metadata> has been upgraded from version 1.000014 to 1.000016.
+L<Module::Metadata> has been upgraded from version 1.000014 to 1.000018.
 
 The module's DESCRIPTION has been re-worded regarding safety/security to
-satisfy CVE-2013-1437.
+satisfy CVE-2013-1437.  Also, versions are now detainted if needed. [cpan
+#88576]
 
 =item *
 
-L<mro> has been upgraded from 1.13 to 1.14.
+L<mro> has been upgraded from version 1.13 to 1.14.
 
 This upgrade is part of a larger change to make the array interface 64-bit safe
 by using SSize_t instead of I32 for array indices.
 
 =item *
 
-L<Perl::OSType> has been upgraded from version 1.003 to 1.004.
+L<parent> has been upgraded from version 0.226 to 0.227.
+
+No changes have been made to the installed code other than the version bump to
+keep in sync with the latest CPAN release.
+
+=item *
+
+L<Parse::CPAN::Meta> has been upgraded from version 1.4405 to 1.4407.
+
+No changes have been made to the installed code other than the version bump to
+keep in sync with the latest CPAN release.
+
+=item *
+
+L<Perl::OSType> has been upgraded from version 1.003 to 1.005.
 
 The Unix OSType 'bitrig' has been added.
 
@@ -274,11 +373,58 @@ A function signature has been corrected in the XS implementation.
 
 =item *
 
+L<Scalar::Util> has been upgraded from version 1.31 to 1.32.
+
+The documentation of C<blessed> has been improved to mention the fact that
+package "0" is defined but false.
+
+=item *
+
+L<Socket> has been upgraded from version 2.011 to 2.012.
+
+Syntax errors when building on the WinCE platform have been fixed. [cpan #87389]
+
+=item *
+
 L<Storable> has been upgraded from version 2.46 to 2.47.
 
 This upgrade is part of a larger change to preserve referential identity when
 passing C<undef> to a subroutine by using NULL rather than &PL_sv_undef for
 nonexistent array elements.
+
+=item *
+
+L<Term::ReadLine> has been upgraded from version 1.10 to 1.14.
+
+Term::ReadLine::EditLine support has been added.
+
+=item *
+
+L<Time::Piece> has been upgraded from version 1.22 to 1.23.
+
+Day of year parsing (like "%y%j") has been fixed.
+
+=item *
+
+L<Unicode::Collate> has been upgraded from version 0.98 to 0.99.
+
+By default, out-of-range values are replaced with C<U+FFFD> (REPLACEMENT
+CHARACTER) when C<UCA_Version> E<gt>= 22, or ignored when C<UCA_Version> E<lt>=
+20.  When C<UCA_Version> E<gt>= 22, the weights of out-of-range values can be
+overridden.
+
+=item *
+
+L<Unicode::UCD> has been upgraded from version 0.53 to 0.54.
+
+This module now works on EBCDIC platforms.
+
+=item *
+
+L<version> has been upgraded from version 0.9903 to 0.9904.
+
+No changes have been made to the installed code other than the version bump to
+keep in sync with the latest CPAN release.
 
 =item *
 
@@ -378,7 +524,25 @@ XXX Changes (i.e. rewording) of diagnostic messages go here
 
 =item *
 
-XXX Describe change here
+Warnings and errors from the regexp engine are now UTF-8 clean
+
+=item *
+
+The "Unknown switch condition" error message has some slight changes.
+This error triggers when there is an unknown condition in a (?(foo))
+conditional; The error message used to read:
+
+    Unknown switch condition (?(%s in regex;
+
+But what %s could be was mostly up to luck; For (?(foobar)), you
+might've seen "fo" or "f".  For Unicode characters, you'd generally
+get a corrupted string.
+The message was changed to read:
+
+    Unknown switch condition (?(...)) in regex;
+
+And additionally, the '<-- HERE' marker in the error will now point
+to the correct spot in the regex.
 
 =back
 
@@ -414,11 +578,10 @@ L</Platform Support> section, instead.
 
 =item *
 
-The F<Makefile.PL> for C<SDBM_File> now generates a better F<Makefile>,
-which avoids a race condition during parallel makes, which could cause the
-build to fail. This is the last known parallel make problem (on *nix
-platforms), and therefore we believe that a parallel make should now always
-be error free.
+The F<Makefile.PL> for C<SDBM_File> now generates a better F<Makefile>, which
+avoids a race condition during parallel makes, which could cause the build to
+fail.  This is the last known parallel make problem (on *nix platforms), and
+therefore we believe that a parallel make should now always be error free.
 
 =for comment
 
@@ -487,11 +650,16 @@ Compile support has been added for Bitrig, a fork of OpenBSD
 
 XXX List any platforms that this version of perl no longer compiles on.
 
+Configure hints and conditional code for several very old platforms
+has been removed.  We have not received reports for these in many years,
+typically not since perl-5.6.0.
+
 =over 4
 
-=item XXX-some-platform
+=item AT&T 3b1
 
-XXX
+Configure support for the 3b1, also known as the AT&T Unix PC (and the
+similar AT&T 7300), has been removed.
 
 =back
 
@@ -525,7 +693,11 @@ well.
 
 =item *
 
-XXX
+The internal representation has changed for the match variables C<$1>, C<$2>
+I<etc.>, C<$`>, C<$&>, C<$'>, C<${^PREMATCH}>, C<${^MATCH}> and
+C<${^POSTMATCH>.  It uses slightly less memory, avoids string comparisons
+and numeric conversions during lookup, and uses 23 fewer lines of C.  This
+change should not affect any external code.
 
 =back
 
@@ -540,8 +712,7 @@ files in F<ext/> and F<lib/> are best summarized in L</Modules and Pragmata>.
 
 =item *
 
-The value of C<$^E> is now saved across signal handlers on
-Win32. [perl #85104]
+The value of C<$^E> is now saved across signal handlers on Win32. [perl #85104]
 
 =back
 

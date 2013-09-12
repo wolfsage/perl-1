@@ -4775,10 +4775,6 @@ Perl_pmruntime(pTHX_ OP *o, OP *expr, bool isreg, I32 floor)
     if (repl) {
 	OP *curop = repl;
 	bool konst;
-	if (pm->op_pmflags & PMf_EVAL) {
-	    if (CopLINE(PL_curcop) < (line_t)PL_parser->multi_end)
-		CopLINE_set(PL_curcop, (line_t)PL_parser->multi_end);
-	}
 	/* If we are looking at s//.../e with a single statement, get past
 	   the implicit do{}. */
 	if (curop->op_type == OP_NULL && curop->op_flags & OPf_KIDS
@@ -5710,7 +5706,11 @@ Perl_newSTATEOP(pTHX_ I32 flags, char *label, OP *o)
 	SAVEFREEPV(label);
     }
 
-    if (PL_parser && PL_parser->copline == NOLINE)
+    if (PL_parser->preambling != NOLINE) {
+        CopLINE_set(cop, PL_parser->preambling);
+        PL_parser->copline = NOLINE;
+    }
+    else if (PL_parser->copline == NOLINE)
         CopLINE_set(cop, CopLINE(PL_curcop));
     else {
 	CopLINE_set(cop, PL_parser->copline);
@@ -11153,8 +11153,8 @@ Perl_rpeep(pTHX_ OP *o)
                             && (   p->op_next->op_type == OP_NEXTSTATE
                                 || p->op_next->op_type == OP_DBSTATE)
                             && count < OPpPADRANGE_COUNTMASK
+                            && base + count == p->op_targ
                     ) {
-                        assert(base + count == p->op_targ);
                         count++;
                         followop = p->op_next;
                     }

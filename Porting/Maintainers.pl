@@ -103,11 +103,11 @@ use File::Glob qw(:case);
 @IGNORABLE = qw(
     .cvsignore .dualLivedDiffConfig .gitignore
     ANNOUNCE Announce Artistic AUTHORS BENCHMARK BUGS Build.PL
-    CHANGELOG ChangeLog Changelog CHANGES Changes COPYING Copying CREDITS
-    dist.ini GOALS HISTORY INSTALL INSTALL.SKIP LICENSE Makefile.PL
-    MANIFEST MANIFEST.SKIP META.yml MYMETA.yml META.json MYMETA.json
+    CHANGELOG ChangeLog Changelog CHANGES Changes CONTRIBUTING COPYING Copying
+    CREDITS dist.ini GOALS HISTORY INSTALL INSTALL.SKIP LICENSE Makefile.PL
+    MANIFEST MANIFEST.SKIP META.json META.yml MYMETA.json MYMETA.yml
     NEW NOTES perlcritic.rc ppport.h README README.PATCHING SIGNATURE
-    THANKS TODO Todo VERSION WHATSNEW CONTRIBUTING
+    THANKS TODO Todo VERSION WHATSNEW
 );
 
 # Each entry in the  %Modules hash roughly represents a distribution,
@@ -225,10 +225,9 @@ use File::Glob qw(:case);
 
     'autodie' => {
         'MAINTAINER'   => 'pjf',
-        'DISTRIBUTION' => 'PJF/autodie-2.20.tar.gz',
+        'DISTRIBUTION' => 'PJF/autodie-2.21.tar.gz',
         'FILES'        => q[cpan/autodie],
         'EXCLUDED'     => [
-            qr{^inc/Module/},
             qr{benchmarks},
             # All these tests depend upon external
             # modules that don't exist when we're
@@ -248,9 +247,10 @@ use File::Glob qw(:case);
                 t/system.t
                 )
         ],
-	# Test got broken by Carp change; update to be merged upstream
-	# [rt.cpan.org #88076].
-        'CUSTOMIZED' => ['t/backcompat.t'],
+        'CUSTOMIZED'   => [
+            # Waiting to be merged upstream: see CPAN RT#88444
+            qw(	t/utime.t ),
+        ],
         'UPSTREAM'   => 'cpan',
     },
 
@@ -329,7 +329,7 @@ use File::Glob qw(:case);
 
     'Carp' => {
         'MAINTAINER'   => 'zefram',
-        'DISTRIBUTION' => 'ZEFRAM/Carp-1.26.tar.gz',
+        'DISTRIBUTION' => 'ZEFRAM/Carp-1.32.tar.gz',
         'FILES'        => q[dist/Carp],
         'UPSTREAM'     => 'blead',
     },
@@ -454,11 +454,12 @@ use File::Glob qw(:case);
     # perl -Icpan/CPAN-Meta/lib Porting/makemeta
     'CPAN::Meta' => {
         'MAINTAINER'   => 'dagolden',
-        'DISTRIBUTION' => 'DAGOLDEN/CPAN-Meta-2.132140.tar.gz',
+        'DISTRIBUTION' => 'DAGOLDEN/CPAN-Meta-2.132510.tar.gz',
         'FILES'        => q[cpan/CPAN-Meta],
         'EXCLUDED'     => [
             qw(t/00-compile.t),
             qw[t/00-report-prereqs.t],
+            qw(cpanfile),
             qr{^xt},
             qr{^history},
         ],
@@ -467,10 +468,11 @@ use File::Glob qw(:case);
 
     'CPAN::Meta::Requirements' => {
         'MAINTAINER'   => 'dagolden',
-        'DISTRIBUTION' => 'DAGOLDEN/CPAN-Meta-Requirements-2.122.tar.gz',
+        'DISTRIBUTION' => 'DAGOLDEN/CPAN-Meta-Requirements-2.123.tar.gz',
         'FILES'        => q[cpan/CPAN-Meta-Requirements],
         'EXCLUDED'     => [
             qw(t/00-compile.t),
+            qw(t/00-report-prereqs.t),
             qr{^xt},
             qr{^history},
         ],
@@ -645,14 +647,18 @@ use File::Glob qw(:case);
 
     'ExtUtils::CBuilder' => {
         'MAINTAINER'   => 'ambs',
-        'DISTRIBUTION' => 'DAGOLDEN/ExtUtils-CBuilder-0.280205.tar.gz',
+        'DISTRIBUTION' => 'AMBS/ExtUtils/ExtUtils-CBuilder-0.280212.tar.gz',
         'FILES'        => q[dist/ExtUtils-CBuilder],
+        'EXCLUDED'     => [
+            qw(README.mkdn),
+            qr{^xt},
+        ],
         'UPSTREAM'     => 'blead',
     },
 
     'ExtUtils::Command' => {
         'MAINTAINER'   => 'p5p',
-        'DISTRIBUTION' => 'FLORA/ExtUtils-Command-1.17.tar.gz',
+        'DISTRIBUTION' => 'FLORA/ExtUtils-Command-1.18.tar.gz',
         'FILES'        => q[dist/ExtUtils-Command],
         'EXCLUDED'     => [qr{^t/release-}],
         'UPSTREAM'     => 'blead',
@@ -693,7 +699,7 @@ use File::Glob qw(:case);
 
     'ExtUtils::MakeMaker' => {
         'MAINTAINER'   => 'mschwern',
-        'DISTRIBUTION' => 'BINGOS/ExtUtils-MakeMaker-6.74.tar.gz',
+        'DISTRIBUTION' => 'BINGOS/ExtUtils-MakeMaker-6.76.tar.gz',
         'FILES'        => q[cpan/ExtUtils-MakeMaker],
         'EXCLUDED'     => [
             qr{^t/lib/Test/},
@@ -707,7 +713,7 @@ use File::Glob qw(:case);
 
     'ExtUtils::Manifest' => {
         'MAINTAINER'   => 'p5p',
-        'DISTRIBUTION' => 'FLORA/ExtUtils-Manifest-1.61.tar.gz',
+        'DISTRIBUTION' => 'FLORA/ExtUtils-Manifest-1.63.tar.gz',
         'FILES'        => q[dist/ExtUtils-Manifest],
         'EXCLUDED'     => [qr(t/release-.*\.t)],
         'UPSTREAM'     => 'blead',
@@ -926,9 +932,11 @@ use File::Glob qw(:case);
 
     'HTTP::Tiny' => {
         'MAINTAINER'   => 'dagolden',
-        'DISTRIBUTION' => 'DAGOLDEN/HTTP-Tiny-0.034.tar.gz',
+        'DISTRIBUTION' => 'DAGOLDEN/HTTP-Tiny-0.035.tar.gz',
         'FILES'        => q[cpan/HTTP-Tiny],
         'EXCLUDED'     => [
+            'cpanfile',
+            't/00-compile.t',
             't/00-report-prereqs.t',
             't/200_live.t',
             't/200_live_local_ip.t',
@@ -1053,7 +1061,7 @@ use File::Glob qw(:case);
 
     'Locale-Codes' => {
         'MAINTAINER'   => 'sbeck',
-        'DISTRIBUTION' => 'SBECK/Locale-Codes-3.26.tar.gz',
+        'DISTRIBUTION' => 'SBECK/Locale-Codes-3.27.tar.gz',
         'FILES'        => q[cpan/Locale-Codes],
         'EXCLUDED'     => [
             qw( t/pod_coverage.t
@@ -1216,7 +1224,7 @@ use File::Glob qw(:case);
 
     'Module::Load::Conditional' => {
         'MAINTAINER'   => 'kane',
-        'DISTRIBUTION' => 'BINGOS/Module-Load-Conditional-0.56.tar.gz',
+        'DISTRIBUTION' => 'BINGOS/Module-Load-Conditional-0.58.tar.gz',
         'FILES'        => q[cpan/Module-Load-Conditional],
         'UPSTREAM'     => 'cpan',
     },
@@ -1230,7 +1238,7 @@ use File::Glob qw(:case);
 
     'Module::Metadata' => {
         'MAINTAINER'   => 'dagolden',
-        'DISTRIBUTION' => 'ETHER/Module-Metadata-1.000016.tar.gz',
+        'DISTRIBUTION' => 'ETHER/Module-Metadata-1.000018.tar.gz',
         'FILES'        => q[cpan/Module-Metadata],
         'EXCLUDED'     => [
             qr{^maint},
@@ -1305,18 +1313,19 @@ use File::Glob qw(:case);
 
     'parent' => {
         'MAINTAINER'   => 'corion',
-        'DISTRIBUTION' => 'CORION/parent-0.226.tar.gz',
+        'DISTRIBUTION' => 'CORION/parent-0.227.tar.gz',
         'FILES'        => q[cpan/parent],
         'UPSTREAM'     => undef,
     },
 
     'Parse::CPAN::Meta' => {
         'MAINTAINER'   => 'dagolden',
-        'DISTRIBUTION' => 'DAGOLDEN/Parse-CPAN-Meta-1.4405.tar.gz',
+        'DISTRIBUTION' => 'DAGOLDEN/Parse-CPAN-Meta-1.4407.tar.gz',
         'FILES'        => q[cpan/Parse-CPAN-Meta],
         'EXCLUDED'     => [
             qw(t/00-compile.t),
             qw[t/00-report-prereqs.t],
+            qw(cpanfile),
             qr{^xt},
         ],
         'UPSTREAM'     => 'cpan',
@@ -1393,9 +1402,9 @@ use File::Glob qw(:case);
 
     'Perl::OSType' => {
         'MAINTAINER'   => 'dagolden',
-        'DISTRIBUTION' => 'DAGOLDEN/Perl-OSType-1.004.tar.gz',
+        'DISTRIBUTION' => 'DAGOLDEN/Perl-OSType-1.005.tar.gz',
         'FILES'        => q[cpan/Perl-OSType],
-        'EXCLUDED'     => [qr/^xt/, qr{^t/00-}],
+        'EXCLUDED'     => [qw(cpanfile), qr/^xt/, qr{^t/00-}],
         'UPSTREAM'     => 'cpan',
     },
 
@@ -1546,7 +1555,7 @@ use File::Glob qw(:case);
 
     'Scalar-List-Utils' => {
         'MAINTAINER'   => 'gbarr',
-        'DISTRIBUTION' => 'PEVANS/Scalar-List-Utils-1.31.tar.gz',
+        'DISTRIBUTION' => 'PEVANS/Scalar-List-Utils-1.32.tar.gz',
         'FILES'    => q[cpan/List-Util],
         'EXCLUDED' => [
             qr{^inc/Module/},
@@ -1586,7 +1595,7 @@ use File::Glob qw(:case);
 
     'Socket' => {
         'MAINTAINER'   => 'pevans',
-        'DISTRIBUTION' => 'PEVANS/Socket-2.011.tar.gz',
+        'DISTRIBUTION' => 'PEVANS/Socket-2.012.tar.gz',
         'FILES'        => q[cpan/Socket],
         'UPSTREAM'     => 'cpan',
     },
@@ -1669,7 +1678,7 @@ use File::Glob qw(:case);
 
     'Term::ReadLine' => {
         'MAINTAINER'   => 'p5p',
-        'DISTRIBUTION' => 'FLORA/Term-ReadLine-1.10.tar.gz',
+        'DISTRIBUTION' => 'FLORA/Term-ReadLine-1.14.tar.gz',
         'FILES'        => q[dist/Term-ReadLine],
         'EXCLUDED'     => [qr{^t/release-.*\.t}],
         'UPSTREAM'     => 'blead',
@@ -1909,14 +1918,14 @@ use File::Glob qw(:case);
 
     'Time::Piece' => {
         'MAINTAINER'   => 'msergeant',
-        'DISTRIBUTION' => 'RJBS/Time-Piece-1.22.tar.gz',
+        'DISTRIBUTION' => 'RJBS/Time-Piece-1.23.tar.gz',
         'FILES'        => q[cpan/Time-Piece],
         'UPSTREAM'     => undef,
     },
 
     'Unicode::Collate' => {
         'MAINTAINER'   => 'sadahiro',
-        'DISTRIBUTION' => 'SADAHIRO/Unicode-Collate-0.98.tar.gz',
+        'DISTRIBUTION' => 'SADAHIRO/Unicode-Collate-0.99.tar.gz',
         'FILES'        => q[cpan/Unicode-Collate],
         'EXCLUDED'     => [
             qr{N$},
@@ -1927,7 +1936,7 @@ use File::Glob qw(:case);
                 mklocale
                 ),
         ],
-        'UPSTREAM' => 'first-come',
+        'UPSTREAM' => 'cpan',
     },
 
     'Unicode::Normalize' => {
@@ -1941,7 +1950,7 @@ use File::Glob qw(:case);
                 enableXS
                 ),
         ],
-        'UPSTREAM' => 'first-come',
+        'UPSTREAM' => 'cpan',
     },
 
     'Unicode::UCD' => {
@@ -1952,7 +1961,7 @@ use File::Glob qw(:case);
 
     'version' => {
         'MAINTAINER'   => 'jpeacock',
-        'DISTRIBUTION' => 'JPEACOCK/version-0.9903.tar.gz',
+        'DISTRIBUTION' => 'JPEACOCK/version-0.9904.tar.gz',
         'FILES'        => q[cpan/version],
         'EXCLUDED' => [
             qr{^vutil/},
@@ -1964,12 +1973,8 @@ use File::Glob qw(:case);
         # Waiting to be merged upstream: see CPAN RT#87513
         'CUSTOMIZED'   => [
             qw( lib/version.pm
-                t/01base.t
-                t/02derived.t
-                t/03require.t
-                t/04strict_lax.t
                 t/07locale.t
-                t/coretests.pm
+                t/08_corelist.t
                 ),
         ],
 

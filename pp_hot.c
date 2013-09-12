@@ -1569,14 +1569,10 @@ Perl_do_readline(pTHX)
     }
     if (!fp) {
 	if ((!io || !(IoFLAGS(io) & IOf_START))
-	    && ckWARN2(WARN_GLOB, WARN_CLOSED))
+	    && ckWARN(WARN_CLOSED)
+            && type != OP_GLOB)
 	{
-	    if (type == OP_GLOB)
-		Perl_ck_warner_d(aTHX_ packWARN(WARN_GLOB),
-			    "glob failed (can't start child: %s)",
-			    Strerror(errno));
-	    else
-		report_evil_fh(PL_last_in_gv);
+	    report_evil_fh(PL_last_in_gv);
 	}
 	if (gimme == G_SCALAR) {
 	    /* undef TARG, and push that undefined value */
@@ -1919,13 +1915,7 @@ PP(pp_iter)
             }
         }
         else if (!av_is_stack) {
-            SV *lv = newSV_type(SVt_PVLV);
-            LvTYPE(lv) = 'y';
-            sv_magic(lv, NULL, PERL_MAGIC_defelem, NULL, 0);
-            LvTARG(lv) = SvREFCNT_inc_simple(av);
-            LvTARGOFF(lv) = ix;
-            LvTARGLEN(lv) = (STRLEN)UV_MAX;
-            sv = lv;
+            sv = newSVavdefelem(av, ix, 0);
         }
         else
             sv = &PL_sv_undef;
@@ -2646,7 +2636,7 @@ try_autoload:
     if (!(CvISXSUB(cv))) {
 	/* This path taken at least 75% of the time   */
 	dMARK;
-	I32 items = SP - MARK;
+	SSize_t items = SP - MARK;
 	PADLIST * const padlist = CvPADLIST(cv);
 	PUSHBLOCK(cx, CXt_SUB, MARK);
 	PUSHSUB(cx);
@@ -2709,7 +2699,7 @@ try_autoload:
 	RETURNOP(CvSTART(cv));
     }
     else {
-	I32 markix = TOPMARK;
+	SSize_t markix = TOPMARK;
 
 	SAVETMPS;
 	PUTBACK;
@@ -2720,24 +2710,38 @@ try_autoload:
 	    !CvLVALUE(cv))
 	    DIE(aTHX_ "Can't modify non-lvalue subroutine call");
 
-	if (!hasargs) {
+	if (!hasargs && GvAV(PL_defgv)) {
 	    /* Need to copy @_ to stack. Alternative may be to
 	     * switch stack to @_, and copy return values
 	     * back. This would allow popping @_ in XSUB, e.g.. XXXX */
 	    AV * const av = GvAV(PL_defgv);
-	    const I32 items = AvFILLp(av) + 1;   /* @_ is not tieable */
+	    const SSize_t items = AvFILL(av) + 1;
 
 	    if (items) {
+		SSize_t i = 0;
+		const bool m = cBOOL(SvRMAGICAL(av));
 		/* Mark is at the end of the stack. */
 		EXTEND(SP, items);
-		Copy(AvARRAY(av), SP + 1, items, SV*);
+		for (; i < items; ++i)
+		{
+		    SV *sv;
+		    if (m) {
+			SV ** const svp = av_fetch(av, i, 0);
+			sv = svp ? *svp : NULL;
+		    }
+		    else sv = AvARRAY(av)[i];
+		    if (sv) SP[i+1] = sv;
+		    else {
+			SP[i+1] = newSVavdefelem(av, i, 1);
+		    }
+		}
 		SP += items;
 		PUTBACK ;		
 	    }
 	}
 	else {
 	    SV **mark = PL_stack_base + markix;
-	    I32 items = SP - mark;
+	    SSize_t items = SP - mark;
 	    while (items--) {
 		mark++;
 		if (*mark && SvPADTMP(*mark) && !IS_PADGV(*mark))
@@ -2839,23 +2843,16 @@ PP(pp_aelem)
 	 }
 #endif
 	if (!svp || !*svp) {
-	    SV* lv;
 	    IV len;
 	    if (!defer)
 		DIE(aTHX_ PL_no_aelem, elem);
 	    len = av_len(av);
-	    lv = sv_newmortal();
-	    sv_upgrade(lv, SVt_PVLV);
-	    LvTYPE(lv) = 'y';
-	    sv_magic(lv, NULL, PERL_MAGIC_defelem, NULL, 0);
-	    LvTARG(lv) = SvREFCNT_inc_simple(av);
+	    mPUSHs(newSVavdefelem(av,
 	    /* Resolve a negative index now, unless it points before the
 	       beginning of the array, in which case record it for error
 	       reporting in magic_setdefelem. */
-	    LvSTARGOFF(lv) =
-		elem < 0 && len + elem >= 0 ? len + elem : elem;
-	    LvTARGLEN(lv) = 1;
-	    PUSHs(lv);
+		elem < 0 && len + elem >= 0 ? len + elem : elem,
+		1));
 	    RETURN;
 	}
 	if (localizing) {
