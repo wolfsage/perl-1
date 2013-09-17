@@ -630,7 +630,7 @@ Perl_utf8n_to_uvchr(pTHX_ const U8 *s, STRLEN curlen, STRLEN *retlen, U32 flags)
      * We also should not consume too few bytes, otherwise someone could inject
      * things.  For example, an input could be deliberately designed to
      * overflow, and if this code bailed out immediately upon discovering that,
-     * returning to the caller *retlen pointing to the very next byte (one
+     * returning to the caller C<*retlen> pointing to the very next byte (one
      * which is actually part of of the overflowing sequence), that could look
      * legitimate to the caller, which could discard the initial partial
      * sequence and process the rest, inappropriately */
@@ -1693,7 +1693,7 @@ Perl__to_upper_title_latin1(pTHX_ const U8 c, U8* p, STRLEN *lenp, const char S_
 
     assert(S_or_s == 'S' || S_or_s == 's');
 
-    if (NATIVE_IS_INVARIANT(converted)) { /* No difference between the two for
+    if (UVCHR_IS_INVARIANT(converted)) { /* No difference between the two for
 					     characters in this range */
 	*p = (U8) converted;
 	*lenp = 1;
@@ -1794,7 +1794,7 @@ S_to_lower_latin1(pTHX_ const U8 c, U8* p, STRLEN *lenp)
     U8 converted = toLOWER_LATIN1(c);
 
     if (p != NULL) {
-	if (NATIVE_IS_INVARIANT(converted)) {
+	if (NATIVE_BYTE_IS_INVARIANT(converted)) {
 	    *p = converted;
 	    *lenp = 1;
 	}
@@ -1864,7 +1864,7 @@ Perl__to_fold_latin1(pTHX_ const U8 c, U8* p, STRLEN *lenp, const unsigned int f
 	converted = toLOWER_LATIN1(c);
     }
 
-    if (NATIVE_IS_INVARIANT(converted)) {
+    if (UVCHR_IS_INVARIANT(converted)) {
 	*p = (U8) converted;
 	*lenp = 1;
     }
@@ -4762,11 +4762,13 @@ Perl_uvuni_to_utf8_flags(pTHX_ U8 *d, UV uv, UV flags)
 
 Instead use L</utf8_to_uvchr_buf>, or rarely, L</utf8n_to_uvchr>.
 
-This function was usefulfor code that wanted to handle both EBCDIC and
+This function was useful for code that wanted to handle both EBCDIC and
 ASCII platforms with Unicode properties, but starting in Perl v5.20, the
 distinctions between the platforms have mostly been made invisible to most
-code, so this function is quite unlikely to be what you want.
-C<L<NATIVE_TO_UNI(utf8_to_uvchr_buf(...))|/utf8_to_uvchr_buf>> instead.
+code, so this function is quite unlikely to be what you want.  If you do need
+this precise functionality, use instead
+C<L<NATIVE_TO_UNI(utf8_to_uvchr_buf(...))|/utf8_to_uvchr_buf>>
+or C<L<NATIVE_TO_UNI(utf8n_to_uvchr(...))|/utf8n_to_uvchr>>.
 
 =cut
 */

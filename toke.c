@@ -3463,7 +3463,7 @@ S_scan_const(pTHX_ char *start)
 		 * to recode the rest of the string into utf8 */
 		
 		/* Here uv is the ordinal of the next character being added */
-		if (!NATIVE_IS_INVARIANT(uv)) {
+		if (!UVCHR_IS_INVARIANT(uv)) {
 		    if (!has_utf8 && uv > 255) {
 			/* Might need to recode whatever we have accumulated so
 			 * far if it contains any chars variant in utf8 or
@@ -3797,7 +3797,7 @@ S_scan_const(pTHX_ char *start)
     default_action:
 	/* If we started with encoded form, or already know we want it,
 	   then encode the next character */
-	if (! NATIVE_IS_INVARIANT((U8)(*s)) && (this_utf8 || has_utf8)) {
+	if (! NATIVE_BYTE_IS_INVARIANT((U8)(*s)) && (this_utf8 || has_utf8)) {
 	    STRLEN len  = 1;
 
 
@@ -4293,14 +4293,7 @@ Perl_filter_read(pTHX_ int idx, SV *buf_sv, int maxlen)
     /* This API is bad. It should have been using unsigned int for maxlen.
        Not sure if we want to change the API, but if not we should sanity
        check the value here.  */
-    unsigned int correct_length
-	= maxlen < 0 ?
-#ifdef PERL_MICRO
-	0x7FFFFFFF
-#else
-	INT_MAX
-#endif
-	: maxlen;
+    unsigned int correct_length = maxlen < 0 ?  PERL_INT_MAX : maxlen;
 
     PERL_ARGS_ASSERT_FILTER_READ;
 
@@ -4687,6 +4680,20 @@ S_word_takes_any_delimeter(char *p, STRLEN len)
 	   (len == 2 && (
 	    (p[0] == 't' && p[1] == 'r') ||
 	    (p[0] == 'q' && strchr("qwxr", p[1]))));
+}
+
+static void
+S_check_scalar_slice(pTHX_ char *s)
+{
+    s++;
+    while (*s == ' ' || *s == '\t') s++;
+    if (*s == 'q' && s[1] == 'w'
+     && !isWORDCHAR_lazy_if(s+2,UTF))
+	return;
+    while (*s && (isWORDCHAR_lazy_if(s,UTF) || strchr(" \t$#+-'\"", *s)))
+	s += UTF ? UTF8SKIP(s) : 1;
+    if (*s == '}' || *s == ']')
+	pl_yylval.ival = OPpSLICEWARNING;
 }
 
 /*
@@ -5166,22 +5173,20 @@ Perl_yylex(pTHX)
 	    goto keylookup;
 	{
         SV *dsv = newSVpvs_flags("", SVs_TEMP);
-        const char *c = UTF ? savepv(sv_uni_display(dsv, newSVpvn_flags(s,
+        const char *c = UTF ? sv_uni_display(dsv, newSVpvn_flags(s,
                                                     UTF8SKIP(s),
                                                     SVs_TEMP | SVf_UTF8),
-                                            10, UNI_DISPLAY_ISPRINT))
+                                            10, UNI_DISPLAY_ISPRINT)
                             : Perl_form(aTHX_ "\\x%02X", (unsigned char)*s);
         len = UTF ? Perl_utf8_length(aTHX_ (U8 *) PL_linestart, (U8 *) s) : (STRLEN) (s - PL_linestart);
         if (len > UNRECOGNIZED_PRECEDE_COUNT) {
             d = UTF ? (char *) Perl_utf8_hop(aTHX_ (U8 *) s, -UNRECOGNIZED_PRECEDE_COUNT) : s - UNRECOGNIZED_PRECEDE_COUNT;
         } else {
             d = PL_linestart;
-        }	
-        *s = '\0';
-        sv_setpv(dsv, d);
-        if (UTF)
-            SvUTF8_on(dsv);
-        Perl_croak(aTHX_  "Unrecognized character %s; marked by <-- HERE after %"SVf"<-- HERE near column %d", c, SVfARG(dsv), (int) len + 1);
+        }
+        Perl_croak(aTHX_  "Unrecognized character %s; marked by <-- HERE after %"UTF8f"<-- HERE near column %d", c,
+                          UTF8fARG(UTF, (s - d), d),
+                         (int) len + 1);
     }
     case 4:
     case 26:
@@ -5809,6 +5814,7 @@ Perl_yylex(pTHX)
 	Mop(OP_MULTIPLY);
 
     case '%':
+    {
 	if (PL_expect == XOPERATOR) {
 	    if (s[1] == '=' && !PL_lex_allbrackets &&
 		    PL_lex_fakeeof >= LEX_FAKEEOF_ASSIGN)
@@ -5820,13 +5826,25 @@ Perl_yylex(pTHX)
 	PL_tokenbuf[0] = '%';
 	s = scan_ident(s, PL_bufend, PL_tokenbuf + 1,
 		sizeof PL_tokenbuf - 1, FALSE);
+	pl_yylval.ival = 0;
 	if (!PL_tokenbuf[1]) {
 	    PREREF('%');
+	}
+	if ((PL_expect != XREF || PL_oldoldbufptr == PL_last_lop) && intuit_more(s)) {
+	    if (*s == '[')
+		PL_tokenbuf[0] = '@';
+
+	    /* Warn about % where they meant $. */
+	    if (*s == '[' || *s == '{') {
+		if (ckWARN(WARN_SYNTAX)) {
+		    S_check_scalar_slice(aTHX_ s);
+		}
+	    }
 	}
 	PL_expect = XOPERATOR;
 	force_ident_maybe_lex('%');
 	TERM('%');
-
+    }
     case '^':
 	if (!PL_lex_allbrackets && PL_lex_fakeeof >=
 		(s[1] == '=' ? LEX_FAKEEOF_ASSIGN : LEX_FAKEEOF_BITWISE))
@@ -6679,6 +6697,7 @@ Perl_yylex(pTHX)
 	    no_op("Array", s);
 	PL_tokenbuf[0] = '@';
 	s = scan_ident(s, PL_bufend, PL_tokenbuf + 1, sizeof PL_tokenbuf - 1, FALSE);
+	pl_yylval.ival = 0;
 	if (!PL_tokenbuf[1]) {
 	    PREREF('@');
 	}
@@ -6691,18 +6710,7 @@ Perl_yylex(pTHX)
 	    /* Warn about @ where they meant $. */
 	    if (*s == '[' || *s == '{') {
 		if (ckWARN(WARN_SYNTAX)) {
-		    const char *t = s + 1;
-		    while (*t && (isWORDCHAR_lazy_if(t,UTF) || strchr(" \t$#+-'\"", *t)))
-			t += UTF ? UTF8SKIP(t) : 1;
-		    if (*t == '}' || *t == ']') {
-			t++;
-			PL_bufptr = PEEKSPACE(PL_bufptr); /* XXX can realloc */
-       /* diag_listed_as: Scalar value @%s[%s] better written as $%s[%s] */
-			Perl_warner(aTHX_ packWARN(WARN_SYNTAX),
-			 "Scalar value %"UTF8f" better written as $%"UTF8f,
-			  UTF8fARG(UTF, t-PL_bufptr, PL_bufptr),
-			  UTF8fARG(UTF, t-PL_bufptr-1, PL_bufptr+1));
-		    }
+		    S_check_scalar_slice(aTHX_ s);
 		}
 	    }
 	}
@@ -7404,7 +7412,7 @@ Perl_yylex(pTHX)
 			    pl_yylval.opval = newUNOP(OP_RV2AV, OPf_PARENS,
 						      pl_yylval.opval);
 			else {
-			    pl_yylval.opval->op_private = OPpCONST_FOLDED;
+			    pl_yylval.opval->op_private = 0;
 			    pl_yylval.opval->op_folded = 1;
 			    pl_yylval.opval->op_flags |= OPf_SPECIAL;
 			}
@@ -11895,7 +11903,7 @@ Perl_scan_vstring(pTHX_ const char *s, const char *const e, SV *sv)
 	    /* Append native character for the rev point */
 	    tmpend = uvchr_to_utf8(tmpbuf, rev);
 	    sv_catpvn(sv, (const char*)tmpbuf, tmpend - tmpbuf);
-	    if (!NATIVE_IS_INVARIANT(rev))
+	    if (!UVCHR_IS_INVARIANT(rev))
 		 SvUTF8_on(sv);
 	    if (pos + 1 < e && *pos == '.' && isDIGIT(pos[1]))
 		 s = ++pos;

@@ -744,7 +744,6 @@ const struct flag_to_name op_const_names[] = {
     {OPpCONST_SHORTCIRCUIT, ",SHORTCIRCUIT"},
     {OPpCONST_STRICT, ",STRICT"},
     {OPpCONST_ENTERED, ",ENTERED"},
-    {OPpCONST_FOLDED, ",FOLDED"},
     {OPpCONST_BARE, ",BARE"}
 };
 
@@ -954,6 +953,12 @@ S_op_private_to_names(pTHX_ SV *tmpsv, U32 optype, U32 op_private) {
 	if (o->op_type == OP_PADRANGE)                                  \
 	    Perl_sv_catpvf(aTHX_ tmpsv, ",COUNT=%"UVuf,                 \
                            (UV)(oppriv & OPpPADRANGE_COUNTMASK));       \
+        if (  (o->op_type == OP_RV2HV || o->op_type == OP_RV2AV ||      \
+               o->op_type == OP_PADAV || o->op_type == OP_PADHV ||      \
+               o->op_type == OP_ASLICE || o->op_type == OP_HSLICE ||    \
+               o->op_type == OP_KVHSLICE || o->op_type == OP_KVASLICE)  \
+           && oppriv & OPpSLICEWARNING  )                               \
+            sv_catpvs(tmpsv, ",SLICEWARNING");                          \
 	if (SvCUR(tmpsv)) {                                             \
             if (xml)                                                    \
                 xmldump_attr1(level+1, file, "private=\"%s\"", SvPVX(tmpsv)+1); \

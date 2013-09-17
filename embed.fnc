@@ -1571,6 +1571,8 @@ p	|I32	|wait4pid	|Pid_t pid|NN int* statusp|int flags
 : Used in locale.c and perl.c
 p	|U32	|parse_unicode_opts|NN const char **popt
 Ap	|U32	|seed
+Xpno	|double	|drand48_r	|NN perl_drand48_t *random_state
+Xpno	|void	|drand48_init_r |NN perl_drand48_t *random_state|U32 seed
 : Only used in perl.c
 p        |void        |get_hash_seed        |NN unsigned char * const seed_buffer
 : Used in doio.c, pp_hot.c, pp_sys.c
@@ -1777,6 +1779,19 @@ sR	|I32	|do_trans_complex_utf8	|NN SV * const sv
 #if defined(PERL_IN_GV_C)
 s	|void	|gv_init_svtype	|NN GV *gv|const svtype sv_type
 s	|void	|gv_magicalize_isa	|NN GV *gv
+s  |bool|parse_gv_stash_name|NN HV **stash|NN GV **gv \
+                     |NN const char **name|NN STRLEN *len \
+                     |NN const char *nambeg|STRLEN full_len \
+                     |const U32 is_utf8|const I32 add
+s  |bool|find_default_stash|NN HV **stash|NN const char *name \
+                     |STRLEN len|const U32 is_utf8|const I32 add \
+                     |svtype sv_type
+s  |bool|gv_magicalize|NN GV *gv|NN HV *stash|NN const char *name \
+                     |STRLEN len|bool addmg \
+                     |svtype sv_type
+s  |void|maybe_multimagic_gv|NN GV *gv|NN const char *name|const svtype sv_type
+s  |bool|gv_is_in_main|NN const char *name|STRLEN len \
+                      |const U32 is_utf8
 s	|HV*	|require_tie_mod|NN GV *gv|NN const char *varpv|NN SV* namesv \
 				|NN const char *methpv|const U32 flags
 #endif
@@ -2053,7 +2068,7 @@ Es	|SSize_t|study_chunk	|NN struct RExC_state_t *pRExC_state \
 				|U32 flags|U32 depth
 EsRn	|U32	|add_data	|NN struct RExC_state_t *pRExC_state|U32 n \
 				|NN const char *s
-rs	|void	|re_croak2	|NN const char* pat1|NN const char* pat2|...
+rs	|void	|re_croak2	|bool utf8|NN const char* pat1|NN const char* pat2|...
 Ei	|I32	|regpposixcc	|NN struct RExC_state_t *pRExC_state \
 				|I32 value|const bool strict
 Es	|I32	|make_trie	|NN struct RExC_state_t *pRExC_state \
@@ -2536,11 +2551,11 @@ Xpo	|void	|xs_apiversion_bootcheck|NN SV *module|NN const char *api_p \
 				|STRLEN api_len
 
 #ifndef HAS_STRLCAT
-Apno	|Size_t	|my_strlcat	|NULLOK char *dst|NULLOK const char *src|Size_t size
+Apnod	|Size_t	|my_strlcat	|NULLOK char *dst|NULLOK const char *src|Size_t size
 #endif
 
 #ifndef HAS_STRLCPY
-Apno     |Size_t |my_strlcpy     |NULLOK char *dst|NULLOK const char *src|Size_t size
+Apnod     |Size_t |my_strlcpy     |NULLOK char *dst|NULLOK const char *src|Size_t size
 #endif
 
 #ifdef PERL_MAD

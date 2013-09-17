@@ -1011,7 +1011,7 @@ next(o)
     PREINIT:
 	SV *ret;
     PPCODE:
-	if (ix < 0 || ix > 46)
+	if (ix < 0 || ix >= C_ARRAY_LENGTH(op_methods))
 	    croak("Illegal alias %d for B::*OP::next", (int)ix);
 	ret = get_overlay_object(aTHX_ o,
 			    op_methods[ix].name, op_methods[ix].namelen);
@@ -1309,7 +1309,7 @@ MODULE = B	PACKAGE = B::IV
 #define PVMG_stash_ix	sv_SVp | offsetof(struct xpvmg, xmg_stash)
 
 #if PERL_VERSION > 18
-#    define PVBM_useful_ix	sv_I32p | offsetof(struct xpvgv, xnv_u.xbm_useful)
+#    define PVBM_useful_ix	sv_IVp | offsetof(struct xpviv, xiv_u.xivu_iv)
 #elif PERL_VERSION > 14
 #    define PVBM_useful_ix	sv_I32p | offsetof(struct xpvgv, xnv_u.xbm_s.xbm_useful)
 #else

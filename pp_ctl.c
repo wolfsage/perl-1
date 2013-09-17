@@ -2896,7 +2896,7 @@ PP(pp_goto) /* also pp_dump */
 		SV **newsp;
 		I32 gimme;
 		const SSize_t items = arg ? AvFILL(arg) + 1 : 0;
-		const bool m = arg ? SvRMAGICAL(arg) : 0;
+		const bool m = arg ? cBOOL(SvRMAGICAL(arg)) : 0;
 		SV** mark;
 
                 PERL_UNUSED_VAR(newsp);
@@ -3969,6 +3969,8 @@ PP(pp_require)
 			dirlen = 0;
 		    }
 
+		    if (!IS_SAFE_SYSCALL(dir, dirlen, "@INC entry", "require"))
+			continue;
 #ifdef VMS
 		    if (((unixdirbuf = SvPVX(sv_2mortal(newSVpv("", VMS_MAXRSS-1)))) == NULL)
 			|| ((unixdir = tounixpath(dir, unixdirbuf)) == NULL))

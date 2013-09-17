@@ -130,9 +130,7 @@ use File::Glob qw(:case);
 # that this hasn't been discussed for the module at hand.
 # "blead" indicates that the copy of the module in the blead
 # sources is to be considered canonical, "cpan" means that the
-# module on CPAN is to be patched first. "first-come" means
-# that blead can be patched freely if it is in sync with the
-# latest release on CPAN.
+# module on CPAN is to be patched first.
 
 # BUGS is an email or url to post bug reports.  For modules with
 # UPSTREAM => 'blead', use perl5-porters@perl.org.  rt.cpan.org
@@ -225,10 +223,9 @@ use File::Glob qw(:case);
 
     'autodie' => {
         'MAINTAINER'   => 'pjf',
-        'DISTRIBUTION' => 'PJF/autodie-2.20.tar.gz',
+        'DISTRIBUTION' => 'PJF/autodie-2.21.tar.gz',
         'FILES'        => q[cpan/autodie],
         'EXCLUDED'     => [
-            qr{^inc/Module/},
             qr{benchmarks},
             # All these tests depend upon external
             # modules that don't exist when we're
@@ -249,10 +246,10 @@ use File::Glob qw(:case);
                 )
         ],
         'CUSTOMIZED'   => [
-            # Waiting to be merged upstream: see CPAN RT#88076
-            qw(	t/backcompat.t ),
             # Waiting to be merged upstream: see CPAN RT#88444
             qw(	t/utime.t ),
+            # Waiting to be merged upstream: see CPAN RT#87237
+            qw(	t/utf8_open.t ),
         ],
         'UPSTREAM'   => 'cpan',
     },
@@ -600,7 +597,7 @@ use File::Glob qw(:case);
 
     'Encode' => {
         'MAINTAINER'   => 'dankogai',
-        'DISTRIBUTION' => 'DANKOGAI/Encode-2.54.tar.gz',
+        'DISTRIBUTION' => 'DANKOGAI/Encode-2.55.tar.gz',
         'FILES'        => q[cpan/Encode],
         'UPSTREAM'     => 'cpan',
     },
@@ -711,7 +708,7 @@ use File::Glob qw(:case);
             qr{^t/liblist/},
             qr{^\.perlcriticrc},
         ],
-        'UPSTREAM' => 'first-come',
+        'UPSTREAM' => 'cpan',
     },
 
     'ExtUtils::Manifest' => {
@@ -731,7 +728,7 @@ use File::Glob qw(:case);
 
     'perlfaq' => {
         'MAINTAINER'   => 'perlfaq',
-        'DISTRIBUTION' => 'LLAP/perlfaq-5.0150043.tar.gz',
+        'DISTRIBUTION' => 'LLAP/perlfaq-5.0150044.tar.gz',
         'FILES'        => q[cpan/perlfaq],
         'EXCLUDED'     => [
             qw( t/release-pod-syntax.t
@@ -935,9 +932,11 @@ use File::Glob qw(:case);
 
     'HTTP::Tiny' => {
         'MAINTAINER'   => 'dagolden',
-        'DISTRIBUTION' => 'DAGOLDEN/HTTP-Tiny-0.034.tar.gz',
+        'DISTRIBUTION' => 'DAGOLDEN/HTTP-Tiny-0.035.tar.gz',
         'FILES'        => q[cpan/HTTP-Tiny],
         'EXCLUDED'     => [
+            'cpanfile',
+            't/00-compile.t',
             't/00-report-prereqs.t',
             't/200_live.t',
             't/200_live_local_ip.t',
@@ -1030,6 +1029,12 @@ use File::Glob qw(:case);
         'EXCLUDED'     => [
             't/900_pod.t',    # Pod testing
         ],
+
+        # Waiting to be merged upstream: see PERL RT#119825
+        'CUSTOMIZED'   => [
+            'lib/JSON/PP.pm',
+        ],
+
         'UPSTREAM' => 'cpan',
     },
 
@@ -1239,7 +1244,7 @@ use File::Glob qw(:case);
 
     'Module::Metadata' => {
         'MAINTAINER'   => 'dagolden',
-        'DISTRIBUTION' => 'ETHER/Module-Metadata-1.000016.tar.gz',
+        'DISTRIBUTION' => 'ETHER/Module-Metadata-1.000018.tar.gz',
         'FILES'        => q[cpan/Module-Metadata],
         'EXCLUDED'     => [
             qr{^maint},
@@ -1403,9 +1408,9 @@ use File::Glob qw(:case);
 
     'Perl::OSType' => {
         'MAINTAINER'   => 'dagolden',
-        'DISTRIBUTION' => 'DAGOLDEN/Perl-OSType-1.004.tar.gz',
+        'DISTRIBUTION' => 'DAGOLDEN/Perl-OSType-1.005.tar.gz',
         'FILES'        => q[cpan/Perl-OSType],
-        'EXCLUDED'     => [qr/^xt/, qr{^t/00-}],
+        'EXCLUDED'     => [qw(cpanfile), qr/^xt/, qr{^t/00-}],
         'UPSTREAM'     => 'cpan',
     },
 
@@ -1730,8 +1735,16 @@ use File::Glob qw(:case);
                 ),
         ],
 
-        # Waiting to be merged upstream: see CPAN RT#79762
-        'CUSTOMIZED' =>  [ 't/fail-more.t' ],
+        'CUSTOMIZED'   => [
+            # Waiting to be merged upstream: see CPAN RT#79762
+            't/fail-more.t',
+
+            # Waiting to be merged upstream: see PERL RT#119825
+            'lib/Test/Builder.pm',
+            'lib/Test/Builder/Module.pm',
+            'lib/Test/More.pm',
+            'lib/Test/Simple.pm',
+        ],
 
         'UPSTREAM' => 'cpan',
     },
@@ -1937,7 +1950,7 @@ use File::Glob qw(:case);
                 mklocale
                 ),
         ],
-        'UPSTREAM' => 'first-come',
+        'UPSTREAM' => 'cpan',
     },
 
     'Unicode::Normalize' => {
@@ -1951,7 +1964,7 @@ use File::Glob qw(:case);
                 enableXS
                 ),
         ],
-        'UPSTREAM' => 'first-come',
+        'UPSTREAM' => 'cpan',
     },
 
     'Unicode::UCD' => {

@@ -22,11 +22,6 @@
 #define USE_STDIO
 #endif /* PERL_FOR_X2P */
 
-#ifdef VOIDUSED
-#   undef VOIDUSED
-#endif
-#define VOIDUSED 1
-
 #ifdef PERL_MICRO
 #   include "uconfig.h"
 #else
@@ -474,7 +469,7 @@ struct op *Perl_op asm(stringify(OP_IN_REGISTER));
 #   define STMT_END	)
 # else
    /* Now which other defined()s do we need here ??? */
-#  if (VOIDFLAGS) && (defined(sun) || defined(__sun__)) && !defined(__GNUC__)
+#  if (defined(sun) || defined(__sun__)) && !defined(__GNUC__)
 #   define STMT_START	if (1)
 #   define STMT_END	else (void)0
 #  else
@@ -739,11 +734,11 @@ struct op *Perl_op asm(stringify(OP_IN_REGISTER));
 #   undef _SC_ARG_MAX /* Symbian has _SC_ARG_MAX but no sysconf() */
 #endif
 
-#if defined(HAS_SYSCALL) && !defined(HAS_SYSCALL_PROTO) && !defined(PERL_MICRO)
+#if defined(HAS_SYSCALL) && !defined(HAS_SYSCALL_PROTO)
 EXTERN_C int syscall(int, ...);
 #endif
 
-#if defined(HAS_USLEEP) && !defined(HAS_USLEEP_PROTO) && !defined(PERL_MICRO)
+#if defined(HAS_USLEEP) && !defined(HAS_USLEEP_PROTO)
 EXTERN_C int usleep(unsigned int);
 #endif
 
@@ -1325,12 +1320,6 @@ EXTERN_C char *crypt(const char *, const char *);
 #   endif
 #endif
 
-#ifdef PERL_MICRO
-#   ifndef DIR
-#      define DIR void
-#   endif
-#endif
-
 #ifdef FPUTS_BOTCH
 /* work around botch in SunOS 4.0.1 and 4.0.2 */
 #   ifndef fputs
@@ -1344,7 +1333,7 @@ EXTERN_C char *crypt(const char *, const char *);
  * in the face of half-implementations.)
  */
 
-#if defined(I_SYSMODE) && !defined(PERL_MICRO)
+#if defined(I_SYSMODE)
 #include <sys/mode.h>
 #endif
 
@@ -1942,7 +1931,7 @@ EXTERN_C long double modfl(long double, long double *);
 #    define Perl_fp_class_zero(x)	(Perl_fp_class(x)==FP_CLASS_NZERO||Perl_fp_class(x)==FP_CLASS_PZERO)
 #endif
 
-#if !defined(Perl_fp_class) && defined(HAS_FP_CLASS) && !defined(PERL_MICRO)
+#if !defined(Perl_fp_class) && defined(HAS_FP_CLASS)
 #    include <math.h>
 #    if !defined(FP_SNAN) && defined(I_FP_CLASS)
 #        include <fp_class.h>
