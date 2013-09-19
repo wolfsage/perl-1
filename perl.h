@@ -109,6 +109,11 @@
 #   endif
 #endif
 
+/* Microsoft Visual C++ 6.0 needs special treatment in numerous places */
+#if defined(WIN32) && defined(_MSC_VER) && _MSC_VER >= 1200 && _MSC_VER < 1300
+#  define USING_MSVC6
+#endif
+
 #undef START_EXTERN_C
 #undef END_EXTERN_C
 #undef EXTERN_C
@@ -1605,26 +1610,17 @@ typedef UVTYPE UV;
 #  else
 #    undef IV_IS_QUAD
 #    undef UV_IS_QUAD
-#ifndef PERL_CORE
+#if !defined(PERL_CORE) || defined(USING_MSVC6)
 /* We think that removing this decade-old undef this will cause too much
    breakage on CPAN for too little gain. (See RT #119753)
-   However, we do need HAS_QUAD in the core for use by the drand48 code.  */
-#    undef HAS_QUAD
-#elif defined(_MSC_VER) && _MSC_VER < 1300
-/* Undef HAS_QUAD in core for Win32 VC6 because it has poor __int64 support. */
+   However, we do need HAS_QUAD in the core for use by the drand48 code,
+   but not for Win32 VC6 because it has poor __int64 support. */
 #    undef HAS_QUAD
 #endif
 #  endif
 #endif
 
 #define SSize_t_MAX (SSize_t)(~(size_t)0 >> 1)
-
-#ifndef HAS_QUAD
-# undef PERL_NEED_MY_HTOLE64
-# undef PERL_NEED_MY_LETOH64
-# undef PERL_NEED_MY_HTOBE64
-# undef PERL_NEED_MY_BETOH64
-#endif
 
 #define IV_DIG (BIT_DIGITS(IVSIZE * 8))
 #define UV_DIG (BIT_DIGITS(UVSIZE * 8))
