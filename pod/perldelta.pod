@@ -4,6 +4,11 @@
 To do:
 df8c7dee Fix segfault in filehandle duplication
 b66f3475 Fix PerlIO_get_cnt and friends
+e94bb470 install useful Regexp::CARP_TRACE from Carp
+88e3936f Fix processing of PERL_ENV_TABLES
+9d32676e [perl #117265] fix various problems with safesyscalls
+9c7618be regcomp.c: Use Perl_form() instead of buggy sprintf
+531d75b0 [perl #89502]: Add support for Atari FreeMiNT platform
 
 =head1 NAME
 
@@ -55,7 +60,7 @@ characters.  [perl #112790, #116907]
 
 =head2 New slice syntax
 
-The new C<%hash{...}> and C<@array[...]> syntax returns a list of key/value (or
+The new C<%hash{...}> and C<%array[...]> syntax returns a list of key/value (or
 index/value) pairs.
 
 =head2 EBCDIC support
@@ -134,7 +139,18 @@ numeric values under the hood.)
 
 =head1 Deprecations
 
-XXX Any deprecated features, syntax, modules etc. should be listed here.
+=head2 Literal control characters in variable names
+
+This deprecation affects things like C<$\cT>, where \cT is a literal
+control in the source code.  Surprisingly, it appears that originally
+this was intended as the canonical way of accessing variables like
+C<$^T>, with the caret form only being added as an alternative.
+
+The literal control form is being deprecated for two main reasons: It
+has what are likely unfixable bugs, such as C<$\cI> not working as an
+alias for C<$^I>, and their usage not being portable to non-ASCII
+platforms: While C<$^T> will work everywhere, C<\cT> is whitespace in
+EBCDIC.
 
 =head2 Module removals
 
@@ -216,6 +232,10 @@ C<B::CV::GV>, changing the return value from a C<B::SPECIAL> object on a
 C<NULL> C<CvGV> to C<undef>.  C<B::CV::GV> again returns a C<B::SPECIAL> object
 in this case.  [perl #119351]
 
+B version 1.44 (perl 5.19.2) introduced three new B::OP methods,
+C<slabbed>, C<savefree>, C<static> and C<folded>, but these have never
+actually worked until now.  They used to croak.
+
 =item *
 
 L<B::Concise> has been upgraded from version 0.98 to 0.99.
@@ -271,6 +291,13 @@ This module now works on EBCDIC platforms.
 
 =item *
 
+L<CPAN> has been upgraded from version 2.00 to 2.03-TRIAL.
+
+Numerous updates and bug fixes are incorporated.  See the F<Changes> file for
+full details.
+
+=item *
+
 L<CPAN::Meta> has been upgraded from version 2.132140 to 2.132510.
 
 No changes have been made to the installed code other than the version bump to
@@ -302,6 +329,14 @@ nonexistent array elements.
 
 In addition, C<Dump> with no args was broken in Perl 5.19.3, but has now been
 fixed.
+
+=item *
+
+L<diagnostics> has been upgraded from version 1.32 to 1.33.
+
+C<=back> is now treated as the end of a warning description, thus keeping any
+trailing data in the file from showing up as part of the last warning's
+description.  [perl #119817]
 
 =item *
 
@@ -410,11 +445,25 @@ A minor internals-only change has been made to the XS code.
 
 =item *
 
+L<IO::Socket> has been upgraded from version 1.36 to 1.37.
+
+The C<connect> method has been updated in the light of changes made in the
+assignment of sockets error codes to $! on Windows (see L</Incompatible
+Changes>).
+
+=item *
+
 L<IPC::Open3> has been upgraded from version 1.15 to 1.16.
 
 This upgrade is part of a larger change to preserve referential identity when
 passing C<undef> to a subroutine by using NULL rather than &PL_sv_undef for
 nonexistent array elements.
+
+=item *
+
+L<JSON::PP> has been patched from version 2.27202 to 2.27202_01.
+
+A precedence issue has been fixed in the return value of a private subroutine.
 
 =item *
 
@@ -474,7 +523,7 @@ The new kvaslice and kvhslice operators have been added.
 
 =item *
 
-L<parent> has been upgraded from version 0.226 to 0.227.
+L<parent> has been upgraded from version 0.226 to 0.228.
 
 No changes have been made to the installed code other than the version bump to
 keep in sync with the latest CPAN release.
@@ -548,6 +597,13 @@ nonexistent array elements.
 L<Term::ReadLine> has been upgraded from version 1.10 to 1.14.
 
 Term::ReadLine::EditLine support has been added.
+
+=item *
+
+L<Test::Simple> has been patched from version 0.98 to 0.98_06.
+
+A precedence issue has been fixed in the return value of a private subroutine
+in L<Test::Builder>.
 
 =item *
 
@@ -956,6 +1012,9 @@ C<rename> and C<link> on Win32 now set C<$!> to ENOSPC and EDQUOT when appropria
 
 =item WinCE
 
+Perl now builds again on WinCE, following locale-related breakage (WinCE has
+non-existent locale support) introduced around 5.19.1.  [perl #119443]
+
 The building of XS modules has largely been restored.  Several still cannot
 (yet) be built but it is now possible to build Perl on WinCE with only a couple
 of further patches (to L<Socket> and L<ExtUtils::MakeMaker>), hopefully to be
@@ -1195,6 +1254,12 @@ slices.  [perl #28380, #114024]
 
 C< $! = EINVAL; waitpid(0, WNOHANG); > no longer goes into an internal infinite
 loop.  [perl #85228]
+
+=item *
+
+Perl 5.19.3 accidentally caused C<\(1+2)> to return a reference to the same
+mutable scalar each time, so that modifications affect future evaluations.
+This has been fixed.  [perl #119501]
 
 =back
 
