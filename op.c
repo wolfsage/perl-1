@@ -10949,7 +10949,8 @@ S_inplace_aassign(pTHX_ OP *o) {
     defer_queue[(defer_base + ++defer_ix) % MAX_DEFERRED] = o; \
   } STMT_END
 
-#define IS_AND_OP(o) o->op_type == OP_AND
+#define IS_AND_OP(o)   (o->op_type == OP_AND)
+#define IS_OR_OP(o)    (o->op_type == OP_OR)
 #define IS_ORISH_OP(o) (o->op_type == OP_OR || o->op_type == OP_DOR)
 
 /* A peephole optimizer.  We visit the ops in the order they're to execute.
@@ -11425,12 +11426,15 @@ Perl_rpeep(pTHX_ OP *o)
 	                          ||  o->op_next->op_type == OP_NULL))
 	           o->op_next = o->op_next->op_next;
 	    }
-	    /* if we're an OR/DOR and our next is a AND in void context, we'll
-	      follow it's op_other on short circuit, same for reverse */
+	    /* if we're an OR and our next is a AND in void context, we'll
+	       follow it's op_other on short circuit, same for reverse.
+	       We can't do this with OP_DOR since if it's true, its return
+	       value is the underlying value which must be evaluated
+	       by the next op */
 	    if (o->op_next &&
 	        (
-		    (IS_AND_OP(o) && IS_ORISH_OP(o->op_next))
-	         || (IS_ORISH_OP(o) && IS_AND_OP(o->op_next))
+		    (IS_AND_OP(o) && IS_OR_OP(o->op_next))
+	         || (IS_OR_OP(o) && IS_AND_OP(o->op_next))
 	        )
 	        && (o->op_next->op_flags & OPf_WANT) == OPf_WANT_VOID
 	    ) {
