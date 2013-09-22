@@ -434,14 +434,6 @@
 #  endif
 #endif
 
-#ifdef OP_IN_REGISTER
-#  ifdef __GNUC__
-#    define stringify_immed(s) #s
-#    define stringify(s) stringify_immed(s)
-struct op *Perl_op asm(stringify(OP_IN_REGISTER));
-#  endif
-#endif
-
 /* gcc (-ansi) -pedantic doesn't allow gcc statement expressions,
  * g++ allows them but seems to have problems with them
  * (insane errors ensue).
@@ -641,11 +633,7 @@ struct op *Perl_op asm(stringify(OP_IN_REGISTER));
 #  include <pthread.h>
 #endif
 
-#ifndef _TYPES_		/* If types.h defines this it's easy. */
-#   ifndef major		/* Does everyone's types.h define this? */
-#	include <sys/types.h>
-#   endif
-#endif
+#include <sys/types.h>
 
 #ifdef __cplusplus
 #  ifndef I_STDARG
@@ -968,9 +956,6 @@ EXTERN_C int usleep(unsigned int);
 #    ifndef memcmp
 	extern int memcmp (char*, char*, int);
 #    endif
-#  endif
-#  ifdef BUGGY_MSC
-#    pragma function(memcmp)
 #  endif
 #else
 #   ifndef memcmp
@@ -1325,13 +1310,6 @@ EXTERN_C char *crypt(const char *, const char *);
 #   endif
 #endif
 
-#ifdef FPUTS_BOTCH
-/* work around botch in SunOS 4.0.1 and 4.0.2 */
-#   ifndef fputs
-#	define fputs(sv,fp) fprintf(fp,"%s",sv)
-#   endif
-#endif
-
 /*
  * The following gobbledygook brought to you on behalf of __STDC__.
  * (I could just use #ifndef __STDC__, but this is more bulletproof
@@ -1480,10 +1458,6 @@ EXTERN_C char *crypt(const char *, const char *);
 
 #ifndef S_IEXEC
 #   define S_IEXEC S_IXUSR
-#endif
-
-#ifdef ff_next
-#   undef ff_next
 #endif
 
 #if defined(cray) || defined(gould) || defined(i860) || defined(pyr)
@@ -2448,42 +2422,22 @@ typedef SV PADNAME;
 #   else
 #       include "dosish.h"
 #   endif
-#   define ISHISH "dos"
-#endif
-
-#if defined(VMS)
+#elif defined(VMS)
 #   include "vmsish.h"
-#   define ISHISH "vms"
-#endif
-
-#if defined(PLAN9)
+#elif defined(PLAN9)
 #   include "./plan9/plan9ish.h"
-#   define ISHISH "plan9"
-#endif
-
-#if defined(__VOS__)
+#elif defined(__VOS__)
 #   ifdef __GNUC__
 #     include "./vos/vosish.h"
 #   else
 #     include "vos/vosish.h"
 #   endif
-#   define ISHISH "vos"
-#endif
-
-#ifdef __SYMBIAN32__
+#elif defined(__SYMBIAN32__)
 #   include "symbian/symbianish.h"
-#   define ISHISH "symbian"
-#endif
-
-
-#if defined(__HAIKU__)
+#elif defined(__HAIKU__)
 #   include "haiku/haikuish.h"
-#   define ISHISH "haiku"
-#endif
-
-#ifndef ISHISH
+#else
 #   include "unixish.h"
-#   define ISHISH "unix"
 #endif
 
 /* NSIG logic from Configure --> */
@@ -3068,15 +3022,6 @@ typedef pthread_key_t	perl_key;
 #  define UTF8f "d%"UVuf"%4p"
 #endif
 #define UTF8fARG(u,l,p) (int)cBOOL(u), (UV)(l), (void*)(p)
-
-#ifdef PERL_CORE
-/* not used; but needed for backward compatibility with XS code? - RMB */
-#  undef VDf
-#else
-#  ifndef VDf
-#    define VDf "vd"
-#  endif
-#endif
 
 #ifdef PERL_CORE
 /* not used; but needed for backward compatibility with XS code? - RMB */

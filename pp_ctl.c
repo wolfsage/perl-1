@@ -168,12 +168,10 @@ PP(pp_regcomp)
     }
 
 
-#ifndef INCOMPLETE_TAINTS
     if (TAINTING_get && TAINT_get) {
 	SvTAINTED_on((SV*)new_re);
         RX_TAINT_on(new_re);
     }
-#endif
 
 #if !defined(USE_ITHREADS)
     /* can't change the optree at runtime either */
@@ -2616,7 +2614,6 @@ PP(pp_last)
 
     POPBLOCK(cx,newpm);
     cxstack_ix++; /* temporarily protect top context */
-    mark = newsp;
     switch (CxTYPE(cx)) {
     case CXt_LOOP_LAZYIV:
     case CXt_LOOP_LAZYSV:
@@ -2643,8 +2640,7 @@ PP(pp_last)
     }
 
     TAINT_NOT;
-    PL_stack_sp = adjust_stack_on_leave(newsp, PL_stack_sp, MARK, gimme,
-				pop2 == CXt_SUB ? SVs_TEMP : 0);
+    PL_stack_sp = newsp;
 
     LEAVE;
     cxstack_ix--;
@@ -3931,9 +3927,15 @@ PP(pp_require)
 			SP--;
 		    }
 
+		    /* FREETMPS may free our filter_cache */
+		    SvREFCNT_inc_simple_void(filter_cache);
+
 		    PUTBACK;
 		    FREETMPS;
 		    LEAVE_with_name("call_INC");
+
+		    /* Now re-mortalize it. */
+		    sv_2mortal(filter_cache);
 
 		    /* Adjust file name if the hook has set an %INC entry.
 		       This needs to happen after the FREETMPS above.  */

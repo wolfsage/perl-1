@@ -182,17 +182,10 @@ static const char* const lex_state_names[] = {
 };
 #endif
 
-#ifdef ff_next
-#undef ff_next
-#endif
-
 #include "keywords.h"
 
 /* CLINE is a macro that ensures PL_copline has a sane value */
 
-#ifdef CLINE
-#undef CLINE
-#endif
 #define CLINE (PL_copline = (CopLINE(PL_curcop) < PL_copline ? CopLINE(PL_curcop) : PL_copline))
 
 #ifdef PERL_MAD
@@ -4744,9 +4737,6 @@ S_check_scalar_slice(pTHX_ char *s)
 */
 
 
-#ifdef __SC__
-#pragma segment Perl_yylex
-#endif
 int
 Perl_yylex(pTHX)
 {
@@ -4777,11 +4767,9 @@ Perl_yylex(pTHX)
     } );
 
     switch (PL_lex_state) {
-#ifdef COMMENTARY
-    case LEX_NORMAL:		/* Some compilers will produce faster */
-    case LEX_INTERPNORMAL:	/* code if we comment these out. */
+    case LEX_NORMAL:
+    case LEX_INTERPNORMAL:
 	break;
-#endif
 
     /* when we've already built the next token, just pull it out of the queue */
     case LEX_KNOWNEXT:
@@ -8960,9 +8948,6 @@ Perl_yylex(pTHX)
 	}
     }}
 }
-#ifdef __SC__
-#pragma segment Main
-#endif
 
 /*
   S_pending_ident
@@ -9371,7 +9356,8 @@ STATIC char *
 S_scan_ident(pTHX_ char *s, char *dest, STRLEN destlen, I32 ck_uni)
 {
     dVAR;
-    char *bracket = NULL;
+    I32 herelines = PL_parser->herelines;
+    SSize_t bracket = -1;
     char funny = *s++;
     char *d = dest;
     char * const e = d + destlen - 3;    /* two-character token, ending NUL */
@@ -9415,7 +9401,7 @@ S_scan_ident(pTHX_ char *s, char *dest, STRLEN destlen, I32 ck_uni)
     }
     /* Handle the opening { of @{...}, &{...}, *{...}, %{...}, ${...}  */
     if (*s == '{') {
-	bracket = s;
+	bracket = s - SvPVX(PL_linestr);
 	s++;
 	orig_copline = CopLINE(PL_curcop);
         if (s < PL_bufend && isSPACE(*s)) {
@@ -9466,9 +9452,9 @@ S_scan_ident(pTHX_ char *s, char *dest, STRLEN destlen, I32 ck_uni)
     /* Warn about ambiguous code after unary operators if {...} notation isn't
        used.  There's no difference in ambiguity; it's merely a heuristic
        about when not to warn.  */
-    else if (ck_uni && !bracket)
+    else if (ck_uni && bracket == -1)
 	check_uni();
-    if (bracket) {
+    if (bracket != -1) {
         /* If we were processing {...} notation then...  */
 	if (isIDFIRST_lazy_if(d,is_utf8)) {
             /* if it starts as a valid identifier, assume that it is one.
@@ -9550,8 +9536,9 @@ S_scan_ident(pTHX_ char *s, char *dest, STRLEN destlen, I32 ck_uni)
 	else {
             /* Didn't find the closing } at the point we expected, so restore
                state such that the next thing to process is the opening { and */
-	    s = bracket;		/* let the parser handle it */
+	    s = SvPVX(PL_linestr) + bracket; /* let the parser handle it */
             CopLINE_set(PL_curcop, orig_copline);
+            PL_parser->herelines = herelines;
 	    *dest = '\0';
 	}
     }
@@ -11471,9 +11458,6 @@ Perl_start_subparse(pTHX_ I32 is_format, U32 flags)
     return oldsavestack_ix;
 }
 
-#ifdef __SC__
-#pragma segment Perl_yylex
-#endif
 static int
 S_yywarn(pTHX_ const char *const s, U32 flags)
 {
@@ -11605,9 +11589,6 @@ Perl_yyerror_pvn(pTHX_ const char *const s, STRLEN len, U32 flags)
     PL_in_my_stash = NULL;
     return 0;
 }
-#ifdef __SC__
-#pragma segment Main
-#endif
 
 STATIC char*
 S_swallow_bom(pTHX_ U8 *s)

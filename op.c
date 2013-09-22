@@ -1910,9 +1910,7 @@ S_finalize_op(pTHX_ OP* o)
 	fields = (GV**)hv_fetchs(SvSTASH(lexname), "FIELDS", FALSE);
 	if (!fields || !GvHV(*fields))
 	    break;
-	key = SvPV_const(*svp, keylen);
-	if (!hv_fetch(GvHV(*fields), key,
-		SvUTF8(*svp) ? -(I32)keylen : (I32)keylen, FALSE)) {
+        if (!hv_fetch_ent(GvHV(*fields), *svp, FALSE, 0)) {
 	    Perl_croak(aTHX_ "No such class field \"%"SVf"\" " 
 			   "in variable %"SVf" of type %"HEKf, 
 		      SVfARG(*svp), SVfARG(lexname),
@@ -1926,8 +1924,6 @@ S_finalize_op(pTHX_ OP* o)
 	SV *lexname;
 	GV **fields;
 	SV **svp;
-	const char *key;
-	STRLEN keylen;
 	SVOP *first_key_op, *key_op;
 
 	S_scalar_slice_warning(aTHX_ o);
@@ -1968,9 +1964,7 @@ S_finalize_op(pTHX_ OP* o)
 	    if (key_op->op_type != OP_CONST)
 		continue;
 	    svp = cSVOPx_svp(key_op);
-	    key = SvPV_const(*svp, keylen);
-	    if (!hv_fetch(GvHV(*fields), key,
-		    SvUTF8(*svp) ? -(I32)keylen : (I32)keylen, FALSE)) {
+            if (!hv_fetch_ent(GvHV(*fields), *svp, FALSE, 0)) {
 		Perl_croak(aTHX_ "No such class field \"%"SVf"\" " 
 			   "in variable %"SVf" of type %"HEKf, 
 		      SVfARG(*svp), SVfARG(lexname),
@@ -10955,6 +10949,9 @@ S_inplace_aassign(pTHX_ OP *o) {
     defer_queue[(defer_base + ++defer_ix) % MAX_DEFERRED] = o; \
   } STMT_END
 
+#define IS_AND_OP(o) o->op_type == OP_AND
+#define IS_ORISH_OP(o) (o->op_type == OP_OR || o->op_type == OP_DOR)
+
 /* A peephole optimizer.  We visit the ops in the order they're to execute.
  * See the comments at the top of this file for more details about when
  * peep() is called */
@@ -11268,9 +11265,14 @@ Perl_rpeep(pTHX_ OP *o)
 
                         old_count
                             = (oldoldop->op_private & OPpPADRANGE_COUNTMASK);
-                        assert(oldoldop->op_targ + old_count == base);
 
-                        if (old_count < OPpPADRANGE_COUNTMASK - count) {
+                       /* Do not assume pad offsets for $c and $d are con-
+                          tiguous in
+                            my ($a,$b,$c);
+                            my ($d,$e,$f);
+                        */
+                        if (  oldoldop->op_targ + old_count == base
+                           && old_count < OPpPADRANGE_COUNTMASK - count) {
                             base = oldoldop->op_targ;
                             count += old_count;
                             reuse = 1;
@@ -11417,6 +11419,23 @@ Perl_rpeep(pTHX_ OP *o)
 	    while (o->op_next && (   o->op_type == o->op_next->op_type
 				  || o->op_next->op_type == OP_NULL))
 		o->op_next = o->op_next->op_next;
+	    /* OP_OR/OP_DOR behave the same wrt op_next */
+	    if (IS_ORISH_OP(o)) {
+	       while (o->op_next && ( IS_ORISH_OP(o->op_next)
+	                          ||  o->op_next->op_type == OP_NULL))
+	           o->op_next = o->op_next->op_next;
+	    }
+	    /* if we're an OR/DOR and our next is a AND in void context, we'll
+	      follow it's op_other on short circuit, same for reverse */
+	    if (o->op_next &&
+	        (
+		    (IS_AND_OP(o) && IS_ORISH_OP(o->op_next))
+	         || (IS_ORISH_OP(o) && IS_AND_OP(o->op_next))
+	        )
+	        && (o->op_next->op_flags & OPf_WANT) == OPf_WANT_VOID
+	    ) {
+	        o->op_next = ((LOGOP*)o->op_next)->op_other;
+	    }
 	    DEFER(cLOGOP->op_other);
           
 	    o->op_opt = 1;
