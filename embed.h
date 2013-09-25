@@ -901,13 +901,9 @@
 #define add_cp_to_invlist(a,b)	S_add_cp_to_invlist(aTHX_ a,b)
 #define add_data		S_add_data
 #define alloc_maybe_populate_EXACT(a,b,c,d,e)	S_alloc_maybe_populate_EXACT(aTHX_ a,b,c,d,e)
-#define cl_and			S_cl_and
-#define cl_anything		S_cl_anything
-#define cl_init			S_cl_init
-#define cl_is_anything		S_cl_is_anything
-#define cl_or			S_cl_or
 #define compute_EXACTish(a)	S_compute_EXACTish(aTHX_ a)
 #define could_it_be_a_POSIX_class(a)	S_could_it_be_a_POSIX_class(aTHX_ a)
+#define get_ANYOF_cp_list_for_ssc(a,b)	S_get_ANYOF_cp_list_for_ssc(aTHX_ a,b)
 #define get_invlist_iter_addr(a)	S_get_invlist_iter_addr(aTHX_ a)
 #define get_invlist_previous_index_addr(a)	S_get_invlist_previous_index_addr(aTHX_ a)
 #define grok_bslash_N(a,b,c,d,e,f,g)	S_grok_bslash_N(aTHX_ a,b,c,d,e,f,g)
@@ -930,6 +926,7 @@
 #define make_trie_failtable(a,b,c,d)	S_make_trie_failtable(aTHX_ a,b,c,d)
 #define nextchar(a)		S_nextchar(aTHX_ a)
 #define parse_lparen_question_flags(a)	S_parse_lparen_question_flags(aTHX_ a)
+#define populate_ANYOF_from_invlist(a,b)	S_populate_ANYOF_from_invlist(aTHX_ a,b)
 #define reg(a,b,c,d)		S_reg(aTHX_ a,b,c,d)
 #define reg_node(a,b)		S_reg_node(aTHX_ a,b)
 #define reg_recode(a,b)		S_reg_recode(aTHX_ a,b)
@@ -947,6 +944,20 @@
 #define reguni(a,b,c)		S_reguni(aTHX_ a,b,c)
 #define regwhite		S_regwhite
 #define scan_commit(a,b,c,d)	S_scan_commit(aTHX_ a,b,c,d)
+#define set_ANYOF_arg(a,b,c,d,e,f)	S_set_ANYOF_arg(aTHX_ a,b,c,d,e,f)
+#define ssc_add_range(a,b,c)	S_ssc_add_range(aTHX_ a,b,c)
+#define ssc_and(a,b,c)		S_ssc_and(aTHX_ a,b,c)
+#define ssc_anything(a)		S_ssc_anything(aTHX_ a)
+#define ssc_clear_locale(a)	S_ssc_clear_locale(aTHX_ a)
+#define ssc_cp_and(a,b)		S_ssc_cp_and(aTHX_ a,b)
+#define ssc_finalize(a,b)	S_ssc_finalize(aTHX_ a,b)
+#define ssc_flags_and		S_ssc_flags_and
+#define ssc_init(a,b)		S_ssc_init(aTHX_ a,b)
+#define ssc_intersection(a,b,c)	S_ssc_intersection(aTHX_ a,b,c)
+#define ssc_is_anything(a)	S_ssc_is_anything(aTHX_ a)
+#define ssc_is_cp_posixl_init(a,b)	S_ssc_is_cp_posixl_init(aTHX_ a,b)
+#define ssc_or(a,b,c)		S_ssc_or(aTHX_ a,b,c)
+#define ssc_union(a,b,c)	S_ssc_union(aTHX_ a,b,c)
 #define study_chunk(a,b,c,d,e,f,g,h,i,j,k)	S_study_chunk(aTHX_ a,b,c,d,e,f,g,h,i,j,k)
 #  endif
 #  if defined(PERL_IN_REGCOMP_C) || defined (PERL_IN_DUMP_C)
