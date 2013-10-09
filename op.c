@@ -10985,6 +10985,89 @@ Perl_rpeep(pTHX_ OP *o)
 	o->op_opt = 1;
 	PL_op = o;
 	switch (o->op_type) {
+	case OP_RETURN: {
+		/* Find an OP_RETURN that:
+		    * points to an OP_LINESEQ that points to an OP_LEAVESUB
+		    * is pointed to by a OP_PUSHMARK that is a child of the OP_LINESEQ
+
+		   Such an OP_RETURN is the last return in a function, and can be optimised out.
+
+		   IE:
+
+		       return $thing;
+
+		   Becomes:
+
+		       $thing;
+
+		*/
+
+		while (o->op_next && o->op_next->op_type == OP_NULL)
+			o->op_next = o->op_next->op_next;
+
+		if (!o->op_next)
+			break;
+
+		if (o->op_next->op_type != OP_LINESEQ)
+			break;
+
+		if (!o->op_next->op_next)
+			break;
+
+		if (o->op_next->op_next->op_type != OP_LEAVESUB)
+			break;
+
+		/* pushmark */
+		OP *pm = cUNOPx(o)->op_first;
+		if (pm->op_type != OP_PUSHMARK)
+			break;
+
+		OP *next = cUNOPx(o->op_next)->op_first;
+		if (next->op_type != OP_NEXTSTATE)
+			break;
+
+		OP *found = NULL;
+
+		/* A sibling points to our pushmark? */
+		while (cUNOPx(next)->op_sibling) {
+			if (next && next->op_next && next->op_next == pm) {
+				found = next;
+
+				break;
+			}
+			next = cUNOPx(next)->op_sibling;
+		    }
+
+		if (!found)
+			break;
+
+
+		if (found->op_type != OP_NEXTSTATE)
+			break;
+
+		/* Now find where the pushmark points to us */
+		OP *last = pm;
+
+		while (last && last->op_next && last->op_next != o) {
+			last = last->op_next;
+		}
+
+		if (last->op_next != o)
+			break;
+
+		/* Skip op_return and op_lineseq */
+		last->op_next = o->op_next->op_next;
+
+		/* Skip pushmark */
+		found->op_next = pm->op_next;
+
+		o->op_type = OP_NULL;
+		o->op_ppaddr = PL_ppaddr[OP_NULL];
+
+		pm->op_type = OP_NULL;
+		pm->op_ppaddr = PL_ppaddr[OP_NULL];
+	    break;
+	}
 	case OP_DBSTATE:
 	    PL_curcop = ((COP*)o);		/* for warnings */
 	    break;
