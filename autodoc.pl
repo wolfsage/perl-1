@@ -174,6 +174,62 @@ DOC:
     }
 }
 
+sub argsout($$$$$) {
+    my ($fh, $name, $flags, $ret, $argsref) = @_;
+
+    if ($flags =~ /U/) { # no usage
+	# nothing
+    } elsif ($flags =~ /s/) { # semicolon ("dTHR;")
+	print $fh "\t\t$name;\n\n";
+    } elsif ($flags =~ /n/) { # no args
+	print $fh "\t$ret\t$name\n\n";
+    } else { # full usage
+	my $p            = $flags =~ /o/; # no #define foo Perl_foo
+	my $n            = "Perl_"x$p . $name;
+	my $large_ret    = length $ret > 7;
+	my $indent_size  = 7+8 # nroff: 7 under =head + 8 under =item
+	                  +8+($large_ret ? 1 + length $ret : 8)
+	                  +length($n) + 1;
+	my $indent;
+	print $fh "\t$ret" . ($large_ret ? ' ' : "\t") . "$n(";
+	my $long_args;
+	for (@$argsref) {
+	    if ($indent_size + 2 + length > 79) {
+		$long_args=1;
+		$indent_size -= length($n) - 3;
+		last;
+	    }
+	}
+	my $args = '';
+	if ($p) {
+	    $args = @$argsref ? "pTHX_ " : "pTHX";
+	    if ($long_args) { print $fh $args; $args = '' }
+	}
+	$long_args and print $fh "\n";
+	my $first = !$long_args;
+	while () {
+	    if (!@$argsref or
+	         length $args
+	         && $indent_size + 3 + length($argsref->[0]) + length $args > 79
+	    ) {
+		print $fh
+		  $first ? '' : (
+		    $indent //=
+		       "\t".($large_ret ? " " x (1+length $ret) : "\t")
+		      ." "x($long_args ? 4 : 1 + length $n)
+		  ),
+		  $args, (","x($args ne 'pTHX_ ') . "\n")x!!@$argsref;
+		$args = $first = '';
+	    }
+	    @$argsref or last;
+	    $args .= ", "x!!(length $args && $args ne 'pTHX_ ')
+	           . shift @$argsref;
+	}
+	if ($long_args) { print $fh "\n", substr $indent, 0, -4 }
+	print $fh ")\n\n";
+    }
+}
+
 sub docout ($$$) { # output the docs for one function
     my($fh, $name, $docref) = @_;
     my($flags, $docs, $ret, $file, @args) = @$docref;
@@ -195,57 +251,8 @@ removed without notice.\n\n$docs" if $flags =~ /x/;
 
     print $fh "=item $name\nX<$name>\n$docs";
 
-    if ($flags =~ /U/) { # no usage
-	# nothing
-    } elsif ($flags =~ /s/) { # semicolon ("dTHR;")
-	print $fh "\t\t$name;\n\n";
-    } elsif ($flags =~ /n/) { # no args
-	print $fh "\t$ret\t$name\n\n";
-    } else { # full usage
-	my $p            = $flags =~ /o/; # no #define foo Perl_foo
-	my $n            = "Perl_"x$p . $name;
-	my $large_ret    = length $ret > 7;
-	my $indent_size  = 7+8 # nroff: 7 under =head + 8 under =item
-	                  +8+($large_ret ? 1 + length $ret : 8)
-	                  +length($n) + 1;
-	my $indent;
-	print $fh "\t$ret" . ($large_ret ? ' ' : "\t") . "$n(";
-	my $long_args;
-	for (@args) {
-	    if ($indent_size + 2 + length > 79) {
-		$long_args=1;
-		$indent_size -= length($n) - 3;
-		last;
-	    }
-	}
-	my $args = '';
-	if ($p) {
-	    $args = @args ? "pTHX_ " : "pTHX";
-	    if ($long_args) { print $fh $args; $args = '' }
-	}
-	$long_args and print $fh "\n";
-	my $first = !$long_args;
-	while () {
-	    if (!@args or
-	         length $args
-	         && $indent_size + 3 + length($args[0]) + length $args > 79
-	    ) {
-		print $fh
-		  $first ? '' : (
-		    $indent //=
-		       "\t".($large_ret ? " " x (1+length $ret) : "\t")
-		      ." "x($long_args ? 4 : 1 + length $n)
-		  ),
-		  $args, (","x($args ne 'pTHX_ ') . "\n")x!!@args;
-		$args = $first = '';
-	    }
-	    @args or last;
-	    $args .= ", "x!!(length $args && $args ne 'pTHX_ ')
-	           . shift @args;
-	}
-	if ($long_args) { print $fh "\n", substr $indent, 0, -4 }
-	print $fh ")\n\n";
-    }
+    argsout($fh, $name, $flags, $ret, \@args);
+
     print $fh "=for hackers\nFound in file $file\n\n";
 }
 
@@ -304,6 +311,16 @@ it.
 _EOB_
     for my $missing (sort @$missing) {
         print $fh "=item $missing\nX<$missing>\n\n";
+
+        my $docref = $funcflags{$missing};
+
+        # Flags come from "=for apidoc <...> lines, excepting A, M, and D, which 
+        # argsout() doesn't care about anyway.
+        my $flags = ''; 
+        my $ret = $docref->{retval};
+        my @args = @{$docref->{args}};
+
+        argsout($fh, $missing, $flags, $ret, \@args);
     }
     print $fh "=back\n\n";
 }
