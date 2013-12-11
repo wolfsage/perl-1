@@ -11109,6 +11109,20 @@ Perl_rpeep(pTHX_ OP *o)
 	case OP_NEXTSTATE:
 	    PL_curcop = ((COP*)o);		/* for warnings */
 
+	    /* Optimise a "return ..." at the end of a sub to just be "...".
+	     * This saves 2 ops */
+	    if (   o->op_next && o->op_next->op_type == OP_PUSHMARK
+	        && o->op_sibling && o->op_sibling->op_type == OP_RETURN
+	        && o->op_sibling->op_next && o->op_sibling->op_next->op_type == OP_LINESEQ
+	        && o->op_sibling->op_next->op_next && o->op_sibling->op_next->op_next->op_type == OP_LEAVESUB
+	        && cUNOPx(o->op_sibling)->op_first && cUNOPx(o->op_sibling)->op_first == o->op_next
+	        && o->op_next->op_sibling && o->op_next->op_sibling->op_next && o->op_next->op_sibling->op_next == o->op_sibling
+	        && o->op_next->op_next && o->op_sibling->op_next)
+	    {
+		o->op_next->op_sibling->op_next = o->op_sibling->op_next;
+		o->op_next = o->op_next->op_next;
+	    }
+
 	    /* Two NEXTSTATEs in a row serve no purpose. Except if they happen
 	       to carry two labels. For now, take the easier option, and skip
 	       this optimisation if the first NEXTSTATE has a label.  */
