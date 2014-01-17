@@ -16,13 +16,13 @@ watchdog(10, $^O eq 'MSWin32' ? "alarm" : '');
 use Config;
 $| = 1;
 $SIG{PIPE} = 'IGNORE';
-$SIG{HUP} = 'IGNORE' if $^O eq 'interix';
+$SIG{TERM} = 'IGNORE' if $^O eq 'interix';
 
 my $perl = which_perl();
 $perl .= qq[ "-I../lib"];
 
-my $killsig = 'HUP';
-$killsig = 1 unless $Config{sig_name} =~ /\bHUP\b/;
+my $killsig = 'TERM';
+$killsig = 15 unless $Config{sig_name} =~ /\bTERM\b/;
 
 SKIP:
 {
