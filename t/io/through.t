@@ -112,7 +112,7 @@ sub testfile ($$$$$$) {
 }
 
 # shell-neutral and miniperl-enabled autoflush? qq(\x24\x7c) eq '$|'
-open my $fh, '-|', qq[$Perl -we "eval qq(\\x24\\x7c = 1) or die; binmode STDOUT; sleep 1, print for split //, qq(a\nb\n\nc\n\n\n)"] or die "open: $!";
+open my $fh, '-|', qq[$Perl -we "eval qq(\\x24\\x7c = 1) or die; binmode STDOUT; sleep 1; print for split //, qq(a\nb\n\nc\n\n\n)"] or die "open: $!";
 ok(1, 'open pipe');
 binmode $fh, q(:crlf);
 ok(1, 'binmode');
