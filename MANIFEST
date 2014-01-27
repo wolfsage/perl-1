@@ -3135,7 +3135,6 @@ dist/IO/t/io_dup.t		See if dup()-related methods from IO work
 dist/IO/t/io_file_export.t	Test IO::File exports
 dist/IO/t/io_file.t		See if binmode()-related methods on IO::File work
 dist/IO/t/io_linenum.t		See if I/O line numbers are tracked correctly
-dist/IO/t/io_multihomed.t	See if INET sockets work with multi-homed hosts
 dist/IO/t/io_pipe.t		See if pipe()-related methods from IO work
 dist/IO/t/io_poll.t		See if poll()-related methods from IO work
 dist/IO/t/io_sel.t		See if select()-related methods from IO work
@@ -5328,7 +5327,6 @@ t/porting/authors.t		Check that all authors have been acknowledged
 t/porting/bincompat.t		Check that {non_,}bincompat_options are ordered
 t/porting/checkcase.t		Check whether we are case-insensitive-fs-friendly
 t/porting/checkcfgvar.t		Check that all config.sh-like files are good
-t/porting/cmp_version.t		Test whether all changed module files have their VERSION bumped
 t/porting/copyright.t		Check that copyright years match
 t/porting/corelist.t		Check that Module-CoreList has perl versions for the current perl
 t/porting/customized.dat		Data file for porting/customized.t
@@ -5345,7 +5343,6 @@ t/porting/maintainers.t		Test that Porting/Maintainers.pl is up to date
 t/porting/manifest.t		Test that this MANIFEST file is well formed
 t/porting/pending-author.t	Check if any pending commit would break tests
 t/porting/perlfunc.t		Test that Functions_pm.PL can parse perlfunc.pod
-t/porting/podcheck.t		Test the POD of shipped modules is well formed
 t/porting/pod_rules.t		Check that various pod lists are consistent
 t/porting/readme.t		Check that all files in Porting/ are mentioned in Porting/README.pod
 t/porting/regen.t		Check that regen.pl doesn't need running
