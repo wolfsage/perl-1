@@ -793,6 +793,12 @@ systems.
 This runs some basic sanity tests on the source tree and helps catch
 basic errors before you submit a patch.
 
+=item * test.deparse test_notty.deparse
+
+Run all the tests through L<B::Deparse>. Not all tests will succeed.
+
+(Not available on Win32)
+
 =item * minitest
 
 Run F<miniperl> on F<t/base>, F<t/comp>, F<t/cmd>, F<t/run>, F<t/io>,

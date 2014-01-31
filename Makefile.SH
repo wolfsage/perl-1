@@ -1392,7 +1392,8 @@ depend: makedepend
 
 .PHONY: test check test_prep test_prep_nodll test_prep_pre \
 	test_prep_reonly test_tty test-tty test_notty test-notty \
-	test_harness test_harness_notty minitest test-reonly _test
+	test_harness test_harness_notty minitest test-reonly _test \
+	test.deparse test_notty.deparse
 
 _test:
 	echo >&2 The _test target is deprecated. Please upgrade your smoker
@@ -1496,6 +1497,15 @@ test_tty test-tty: test_prep
 
 test_notty test-notty: test_prep
 	$(RUN_TESTS) no-tty
+
+# Targets for Deparse testing.
+test.deparse:  test_prep
+	@echo "DOING IT"
+	TEST_ARGS=-deparse $(RUN_TESTS) choose
+	@echo "DONE"
+
+test_notty.deparse: test_prep
+	TEST_ARGS=-deparse $(RUN_TESTS) no-tty
 
 !NO!SUBS!
 
