@@ -489,6 +489,25 @@ PP(pp_die)
 	exsv = TOPs;
     }
 
+    /* Should we lie about our caller? */
+    if (PL_op->op_flags & OPf_SPECIAL) {
+	const PERL_CONTEXT *cx = NULL;
+	const PERL_CONTEXT *dbcx = NULL;
+
+	cx = caller_cx(0+!!(PL_op->op_private & OPpOFFBYONE), &dbcx);
+	if (cx) {
+	    const COP *lcop;
+
+	    lcop = closest_cop(cx->blk_oldcop, cx->blk_oldcop->op_sibling,
+	        cx->blk_sub.retop, TRUE);
+
+	    if (!lcop)
+		lcop = cx->blk_oldcop;
+
+	    PL_curcop = (COP*)lcop;
+	}
+    }
+
     if (SvROK(exsv) || (SvPV_const(exsv, len), len)) {
 	/* well-formed exception supplied */
     }

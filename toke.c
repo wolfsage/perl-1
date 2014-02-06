@@ -12507,7 +12507,7 @@ Perl_parse_subsignature(pTHX)
 				scalar(newUNOP(OP_RV2AV, 0,
 				    newGVOP(OP_GV, 0, PL_defgv))),
 				newSVOP(OP_CONST, 0, newSViv(1))),
-			    newLISTOP(OP_DIE, 0, newOP(OP_PUSHMARK, 0),
+			    newLISTOP(OP_DIE, OPf_SPECIAL, newOP(OP_PUSHMARK, 0),
 				newSVOP(OP_CONST, 0,
 				    newSVpvs("Odd name/value argument "
 					"for subroutine"))));
@@ -12573,7 +12573,7 @@ Perl_parse_subsignature(pTHX)
 			scalar(newUNOP(OP_RV2AV, 0,
 			    newGVOP(OP_GV, 0, PL_defgv))),
 			newSVOP(OP_CONST, 0, newSViv(min_arity))),
-		    newLISTOP(OP_DIE, 0, newOP(OP_PUSHMARK, 0),
+		    newLISTOP(OP_DIE, OPf_SPECIAL, newOP(OP_PUSHMARK, 0),
 			newSVOP(OP_CONST, 0,
 			    newSVpvs("Too few arguments for subroutine"))))),
 	    initops);
@@ -12586,7 +12586,7 @@ Perl_parse_subsignature(pTHX)
 			scalar(newUNOP(OP_RV2AV, 0,
 			    newGVOP(OP_GV, 0, PL_defgv))),
 			newSVOP(OP_CONST, 0, newSViv(max_arity))),
-		    newLISTOP(OP_DIE, 0, newOP(OP_PUSHMARK, 0),
+		    newLISTOP(OP_DIE, OPf_SPECIAL, newOP(OP_PUSHMARK, 0),
 			newSVOP(OP_CONST, 0,
 			    newSVpvs("Too many arguments for subroutine"))))),
 	    initops);

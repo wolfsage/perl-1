@@ -144,6 +144,7 @@ Deprecated.  Use C<GIMME_V> instead.
 			         */
                                 /*  On OP_PADRANGE, push @_ */
                                 /*  On OP_DUMP, has no label */
+                                /*  On OP_DIE, die uses calling COP for line numbers */
 
 /* old names; don't use in new code, but don't break them, either */
 #define OPf_LIST	OPf_WANT_LIST
