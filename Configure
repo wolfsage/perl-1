@@ -1600,6 +1600,7 @@ reuseval=false
 config_sh=''
 alldone=''
 error=''
+ignoreprevious=''
 silent=''
 extractsh=''
 override=''
@@ -1628,6 +1629,7 @@ while test $# -gt 0; do
 		shift;;
 	--help|\
 	-h) shift; error=true;;
+	-i) shift; ignoreprevious=true;;
 	-r) shift; reuseval=true;;
 	-s) shift; silent=true; realsilent=true;;
 	-E) shift; alldone=exit;;
@@ -1726,6 +1728,7 @@ Usage: $me [-dehrsEKOSV] [-f config.sh] [-D symbol] [-D symbol=value]
   -e : go on without questioning past the production of config.sh.
   -f : specify an alternate default configuration file.
   -h : print this help message and exit (with an error status).
+  -i : delete config.sh and Policy.sh first (for a fresh Configure run)
   -r : reuse C symbols value if possible (skips costly nm extraction).
   -s : silent mode, only echoes questions and essential information.
   -D : define symbol to have some value:
@@ -1784,6 +1787,12 @@ esac
 exec 4>&1
 case "$silent" in
 true) exec 1>/dev/null;;
+esac
+
+case "$ignoreprevious" in
+true)
+	echo "Removing previous Policy.sh and config.sh..." >&4
+	rm -f Policy.sh config.sh
 esac
 
 : run the defines and the undefines, if any, but leave the file out there...
